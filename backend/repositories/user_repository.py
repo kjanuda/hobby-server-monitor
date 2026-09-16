@@ -88,6 +88,59 @@ class UserRepository:
         finally:
             connection.close()
 
+    def get_user_by_google_sub(self, google_sub):
+        connection = get_connection()
+
+        try:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM users
+                WHERE google_sub = ?
+                """,
+                (google_sub,),
+            ).fetchone()
+
+            return dict(row) if row else None
+
+        finally:
+            connection.close()
+
+    def bind_google_identity(
+        self,
+        user_id,
+        google_sub,
+        name=None,
+    ):
+        connection = get_connection()
+
+        try:
+            connection.execute(
+                """
+                UPDATE users
+                SET
+                    google_sub = ?,
+                    name = COALESCE(?, name),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    google_sub,
+                    name,
+                    user_id,
+                ),
+            )
+
+            connection.commit()
+
+            return self.get_user_by_id(
+                user_id,
+                connection=connection,
+            )
+
+        finally:
+            connection.close()
+
     def list_users(self):
         connection = get_connection()
 

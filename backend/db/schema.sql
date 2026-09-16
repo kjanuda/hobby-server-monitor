@@ -40,6 +40,30 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    token_hash TEXT NOT NULL UNIQUE,
+
+    user_id INTEGER NOT NULL,
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TEXT NOT NULL,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_token_hash
+ON sessions(token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id
+ON sessions(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at
+ON sessions(expires_at);
+
 CREATE TABLE IF NOT EXISTS containers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -119,3 +143,19 @@ ON audit_logs(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_audit_container
 ON audit_logs(container_id);
+
+CREATE TABLE IF NOT EXISTS oauth_states (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    state_hash TEXT NOT NULL UNIQUE,
+    code_verifier TEXT NOT NULL,
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_states_hash
+ON oauth_states(state_hash);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_states_expires
+ON oauth_states(expires_at);

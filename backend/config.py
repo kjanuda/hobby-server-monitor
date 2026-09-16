@@ -14,3 +14,53 @@ BOOTSTRAP_ADMIN_EMAIL = os.getenv(
     "BOOTSTRAP_ADMIN_EMAIL",
     "",
 ).strip().lower()
+
+
+GOOGLE_CLIENT_ID = os.getenv(
+    "GOOGLE_CLIENT_ID",
+    "",
+).strip()
+
+GOOGLE_CLIENT_SECRET = os.getenv(
+    "GOOGLE_CLIENT_SECRET",
+    "",
+).strip()
+
+GOOGLE_REDIRECT_URI = os.getenv(
+    "GOOGLE_REDIRECT_URI",
+    "http://localhost:8000/api/auth/google/callback",
+).strip()
+
+
+# OAuth endpoints
+
+GOOGLE_AUTHORIZATION_ENDPOINT = (
+    "https://accounts.google.com/o/oauth2/v2/auth"
+)
+
+GOOGLE_TOKEN_ENDPOINT = (
+    "https://oauth2.googleapis.com/token"
+)
+
+GOOGLE_USERINFO_ENDPOINT = (
+    "https://openidconnect.googleapis.com/v1/userinfo"
+)
+
+
+# Session configuration
+
+SESSION_COOKIE_NAME = os.getenv(
+    "SESSION_COOKIE_NAME",
+    "hsm_session",
+).strip()
+
+SESSION_TTL_SECONDS = int(
+    os.getenv("SESSION_TTL_SECONDS", "28800")
+)
+
+SESSION_COOKIE_SECURE = (
+    os.getenv("SESSION_COOKIE_SECURE", "false")
+    .strip()
+    .lower()
+    == "true"
+)
