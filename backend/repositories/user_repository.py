@@ -104,3 +104,72 @@ class UserRepository:
 
         finally:
             connection.close()
+
+    def update_user(
+        self,
+        user_id,
+        name,
+        role,
+        ram_quota_bytes,
+        cpu_quota,
+        disk_quota_bytes,
+    ):
+        connection = get_connection()
+
+        try:
+            connection.execute(
+                """
+                UPDATE users
+                SET
+                    name = ?,
+                    role = ?,
+                    ram_quota_bytes = ?,
+                    cpu_quota = ?,
+                    disk_quota_bytes = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    name,
+                    role,
+                    ram_quota_bytes,
+                    cpu_quota,
+                    disk_quota_bytes,
+                    user_id,
+                ),
+            )
+
+            connection.commit()
+
+            return self.get_user_by_id(
+                user_id,
+                connection=connection,
+            )
+
+        finally:
+            connection.close()
+
+    def revoke_user(self, user_id):
+        connection = get_connection()
+
+        try:
+            connection.execute(
+                """
+                UPDATE users
+                SET
+                    active = 0,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (user_id,),
+            )
+
+            connection.commit()
+
+            return self.get_user_by_id(
+                user_id,
+                connection=connection,
+            )
+
+        finally:
+            connection.close()
