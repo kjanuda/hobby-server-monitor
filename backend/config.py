@@ -64,3 +64,19 @@ SESSION_COOKIE_SECURE = (
     .lower()
     == "true"
 )
+
+
+# Metrics configuration
+
+METRICS_INTERVAL_SECONDS = int(
+    os.getenv("METRICS_INTERVAL_SECONDS", "10")
+)
+
+METRICS_RETENTION_HOURS = int(
+    os.getenv("METRICS_RETENTION_HOURS", "48")
+)
+
+METRICS_DB_PATH = os.getenv(
+    "METRICS_DB_PATH",
+    "backend/data/metrics.csv",
+).strip()

@@ -226,6 +226,7 @@ class LXDService:
 
         data = {
             "name": container.name,
+            "lxd_uuid": config.get("volatile.uuid"),
             "status": container.status,
             "type": "container",
             "sampled_at": datetime.now(timezone.utc).isoformat(),
@@ -293,8 +294,12 @@ class LXDService:
         disk = state.disk or {}
         root_disk = disk.get("root", {})
 
-        data["disk"]["used_bytes"] = root_disk.get("usage")
-        data["disk"]["total_bytes"] = root_disk.get("total")
+        disk_usage = root_disk.get("usage")
+        disk_total = root_disk.get("total")
+
+        if disk_total and disk_total > 0:
+            data["disk"]["used_bytes"] = disk_usage
+            data["disk"]["total_bytes"] = disk_total
 
         # Network
         network = state.network or {}
