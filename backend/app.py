@@ -1,4 +1,5 @@
 import falcon
+
 from waitress import serve
 
 from api.auth import (
@@ -43,6 +44,10 @@ from api.terminal import (
     ContainerTerminalResource,
 )
 
+from api.quota import (
+    MyQuotaResource,
+)
+
 from middleware.authentication import (
     AuthenticationMiddleware,
 )
@@ -82,6 +87,13 @@ container_action_resource = (
 container_terminal_resource = (
     ContainerTerminalResource()
 )
+
+
+# ============================================================
+# Quota resources
+# ============================================================
+
+my_quota_resource = MyQuotaResource()
 
 
 # ============================================================
@@ -161,6 +173,16 @@ app.add_route(
 
 
 # ============================================================
+# Quota routes
+# ============================================================
+
+app.add_route(
+    "/api/me/quota",
+    my_quota_resource,
+)
+
+
+# ============================================================
 # Authentication routes
 # ============================================================
 
@@ -203,6 +225,11 @@ app.add_route(
 # ============================================================
 # Container access routes
 # ============================================================
+
+app.add_route(
+    "/api/users/{user_id:int}/containers",
+    container_access_resource,
+)
 
 app.add_route(
     "/api/users/{user_id:int}/containers/{container_id:int}",

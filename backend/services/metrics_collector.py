@@ -3,7 +3,10 @@ from datetime import datetime, timezone
 
 from tinyflux import Point
 
-from config import METRICS_INTERVAL_SECONDS
+from config import (
+    DISK_METRICS_INTERVAL_SECONDS,
+    METRICS_INTERVAL_SECONDS,
+)
 from services.lxd_service import LXDService
 from services.metrics_store import MetricsStore
 from services.resource_utils import parse_size_to_bytes
@@ -15,6 +18,7 @@ class MetricsCollector:
         self.store = MetricsStore()
 
         self.previous = {}
+        self.disk_cache = {}
         self.last_cleanup = 0.0
 
     def collect_once(self):
@@ -86,6 +90,7 @@ class MetricsCollector:
         monotonic_now,
     ):
         name = container["name"]
+
         lxd_uuid = (
             container.get("lxd_uuid")
             or name
@@ -220,6 +225,12 @@ class MetricsCollector:
             "tx_bytes": tx_bytes,
             "rx_bytes_per_second": rx_rate,
             "tx_bytes_per_second": tx_rate,
+            "uptime_seconds": (
+                container.get(
+                    "uptime_seconds"
+                )
+                or 0
+            ),
         }
 
         if memory_percent is not None:
@@ -227,22 +238,88 @@ class MetricsCollector:
                 memory_percent
             )
 
-        disk_used = container["disk"].get(
-            "used_bytes"
+        # Disk metrics
+        disk_allocated = (
+            container["disk"].get(
+                "allocated_bytes"
+            )
         )
 
-        disk_total = container["disk"].get(
-            "total_bytes"
+        disk_used = (
+            container["disk"].get(
+                "used_bytes"
+            )
         )
 
-        if disk_used is not None:
-            fields["disk_used_bytes"] = (
-                disk_used
+        disk_source = (
+            container["disk"].get(
+                "usage_source"
+            )
+        )
+
+        cache = self.disk_cache.get(
+            lxd_uuid
+        )
+
+        should_refresh_disk = (
+            cache is None
+            or (
+                monotonic_now
+                - cache["monotonic"]
+                >= DISK_METRICS_INTERVAL_SECONDS
+            )
+        )
+
+        if (
+            disk_used is None
+            and container["status"] == "Running"
+            and should_refresh_disk
+        ):
+            fallback_usage = (
+                self.lxd_service
+                .get_container_disk_usage_bytes(
+                    name
+                )
             )
 
-        if disk_total is not None:
-            fields["disk_total_bytes"] = (
-                disk_total
+            if fallback_usage is not None:
+                disk_used = fallback_usage
+                disk_source = "du"
+
+                self.disk_cache[lxd_uuid] = {
+                    "monotonic": monotonic_now,
+                    "used_bytes": disk_used,
+                }
+
+        elif disk_used is None and cache:
+            disk_used = cache[
+                "used_bytes"
+            ]
+
+            disk_source = "du-cache"
+
+        if disk_used is not None:
+            fields[
+                "disk_used_bytes"
+            ] = disk_used
+
+        if disk_allocated is not None:
+            fields[
+                "disk_allocated_bytes"
+            ] = disk_allocated
+
+        if (
+            disk_used is not None
+            and disk_allocated
+            and disk_allocated > 0
+        ):
+            fields["disk_percent"] = round(
+                (
+                    disk_used
+                    / disk_allocated
+                )
+                * 100,
+                2,
             )
 
         return Point(

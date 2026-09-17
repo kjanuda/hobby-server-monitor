@@ -12,6 +12,10 @@ class ContainerAccessError(Exception):
     pass
 
 
+class ContainerAccessNotFoundError(Exception):
+    pass
+
+
 class ContainerAccessForbiddenError(Exception):
     pass
 
@@ -110,6 +114,20 @@ class ContainerAccessService:
         )
 
     def list_for_user(self, user_id):
+        return self.access_repository.list_for_user(
+            user_id
+        )
+
+    def list_assignments_for_user(self, user_id):
+        user = self.user_repository.get_user_by_id(
+            user_id
+        )
+
+        if not user:
+            raise ContainerAccessNotFoundError(
+                "User not found."
+            )
+
         return self.access_repository.list_for_user(
             user_id
         )

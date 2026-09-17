@@ -437,3 +437,73 @@ class QuotaService:
                 "the owner's disk quota."
             )
 
+    def get_user_quota_summary(self, user_id):
+        user = self.user_repository.get_user_by_id(
+            user_id
+        )
+
+        if not user:
+            raise QuotaValidationError(
+                "User does not exist."
+            )
+
+        if not user["active"]:
+            raise QuotaValidationError(
+                "User is revoked."
+            )
+
+        usage = self.get_user_usage(
+            user_id
+        )
+
+        ram_limit = user["ram_quota_bytes"]
+        cpu_limit = user["cpu_quota"]
+        disk_limit = user["disk_quota_bytes"]
+
+        return {
+            "user_id": user["id"],
+            "limits": {
+                "ram_bytes": ram_limit,
+                "cpu_cores": cpu_limit,
+                "disk_bytes": disk_limit,
+            },
+            "used": {
+                "ram_bytes": usage["ram_bytes"],
+                "cpu_cores": usage["cpu"],
+                "disk_bytes": usage["disk_bytes"],
+            },
+            "remaining": {
+                "ram_bytes": (
+                    None
+                    if ram_limit == 0
+                    else max(
+                        ram_limit
+                        - usage["ram_bytes"],
+                        0,
+                    )
+                ),
+                "cpu_cores": (
+                    None
+                    if cpu_limit == 0
+                    else max(
+                        cpu_limit
+                        - usage["cpu"],
+                        0,
+                    )
+                ),
+                "disk_bytes": (
+                    None
+                    if disk_limit == 0
+                    else max(
+                        disk_limit
+                        - usage["disk_bytes"],
+                        0,
+                    )
+                ),
+            },
+            "unlimited": {
+                "ram": ram_limit == 0,
+                "cpu": cpu_limit == 0,
+                "disk": disk_limit == 0,
+            },
+        }

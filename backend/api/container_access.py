@@ -3,6 +3,7 @@ import falcon
 from services.authorization import require_admin
 from services.container_access_service import (
     ContainerAccessError,
+    ContainerAccessNotFoundError,
     ContainerAccessService,
 )
 
@@ -10,6 +11,36 @@ from services.container_access_service import (
 class ContainerAccessResource:
     def __init__(self):
         self.service = ContainerAccessService()
+
+    @falcon.before(require_admin)
+    def on_get(
+        self,
+        req,
+        resp,
+        user_id,
+    ):
+        try:
+            containers = (
+                self.service
+                .list_assignments_for_user(
+                    user_id
+                )
+            )
+
+        except ContainerAccessNotFoundError as exc:
+            resp.media = {
+                "error": str(exc)
+            }
+            resp.status = falcon.HTTP_404
+            return
+
+        resp.media = {
+            "user_id": user_id,
+            "containers": containers,
+            "count": len(containers),
+        }
+
+        resp.status = falcon.HTTP_200
 
     @falcon.before(require_admin)
     def on_put(

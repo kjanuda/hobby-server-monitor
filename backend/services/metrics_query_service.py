@@ -97,6 +97,11 @@ class MetricsQueryService:
             "cpu_percent": (
                 point.fields.get("cpu_percent")
             ),
+            "uptime_seconds": (
+                point.fields.get(
+                    "uptime_seconds"
+                )
+            ),
             "memory_used_bytes": (
                 point.fields.get(
                     "memory_used_bytes"
@@ -136,9 +141,14 @@ class MetricsQueryService:
                     "disk_used_bytes"
                 )
             ),
-            "disk_total_bytes": (
+            "disk_allocated_bytes": (
                 point.fields.get(
-                    "disk_total_bytes"
+                    "disk_allocated_bytes"
+                )
+            ),
+            "disk_percent": (
+                point.fields.get(
+                    "disk_percent"
                 )
             ),
         }

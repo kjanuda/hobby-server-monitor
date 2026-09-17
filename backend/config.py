@@ -55,11 +55,17 @@ SESSION_COOKIE_NAME = os.getenv(
 ).strip()
 
 SESSION_TTL_SECONDS = int(
-    os.getenv("SESSION_TTL_SECONDS", "28800")
+    os.getenv(
+        "SESSION_TTL_SECONDS",
+        "28800",
+    )
 )
 
 SESSION_COOKIE_SECURE = (
-    os.getenv("SESSION_COOKIE_SECURE", "false")
+    os.getenv(
+        "SESSION_COOKIE_SECURE",
+        "false",
+    )
     .strip()
     .lower()
     == "true"
@@ -69,14 +75,27 @@ SESSION_COOKIE_SECURE = (
 # Metrics configuration
 
 METRICS_INTERVAL_SECONDS = int(
-    os.getenv("METRICS_INTERVAL_SECONDS", "10")
+    os.getenv(
+        "METRICS_INTERVAL_SECONDS",
+        "10",
+    )
 )
 
 METRICS_RETENTION_HOURS = int(
-    os.getenv("METRICS_RETENTION_HOURS", "48")
+    os.getenv(
+        "METRICS_RETENTION_HOURS",
+        "48",
+    )
 )
 
 METRICS_DB_PATH = os.getenv(
     "METRICS_DB_PATH",
     "backend/data/metrics.csv",
 ).strip()
+
+DISK_METRICS_INTERVAL_SECONDS = int(
+    os.getenv(
+        "DISK_METRICS_INTERVAL_SECONDS",
+        "60",
+    )
+)

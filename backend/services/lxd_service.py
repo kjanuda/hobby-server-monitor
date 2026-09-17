@@ -1,6 +1,10 @@
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pylxd
+
+from services.resource_utils import parse_size_to_bytes
 
 
 class LXDService:
@@ -9,8 +13,11 @@ class LXDService:
         "22.04",
     }
 
+    DISK_USAGE_CACHE_SECONDS = 60
+
     def __init__(self):
         self.client = pylxd.Client()
+        self._disk_usage_cache = {}
 
     def list_containers(self):
         """Return all LXD containers with their current runtime state."""
@@ -221,21 +228,135 @@ class LXDService:
 
         container.delete(wait=True)
 
+    def _get_process_uptime_seconds(self, pid):
+        if not pid:
+            return None
+
+        try:
+            host_uptime = float(
+                Path("/proc/uptime")
+                .read_text(encoding="utf-8")
+                .split()[0]
+            )
+
+            stat = Path(
+                f"/proc/{pid}/stat"
+            ).read_text(
+                encoding="utf-8"
+            )
+
+            # Field 2 can contain spaces, so split only
+            # after the closing process-name parenthesis.
+            fields_after_name = stat.rsplit(
+                ") ",
+                1,
+            )[1].split()
+
+            # /proc/<pid>/stat field 22 = starttime.
+            # fields_after_name[0] corresponds to field 3.
+            start_ticks = int(
+                fields_after_name[19]
+            )
+
+            clock_ticks = os.sysconf(
+                "SC_CLK_TCK"
+            )
+
+            started_at_uptime = (
+                start_ticks / clock_ticks
+            )
+
+            return round(
+                max(
+                    host_uptime
+                    - started_at_uptime,
+                    0,
+                ),
+                2,
+            )
+
+        except (
+            OSError,
+            ValueError,
+            IndexError,
+        ):
+            return None
+
+    def get_container_disk_usage_bytes(
+        self,
+        name,
+    ):
+        container = (
+            self.client.containers.get(
+                name
+            )
+        )
+
+        if container.status != "Running":
+            return None
+
+        try:
+            result = container.execute(
+                [
+                    "du",
+                    "-sx",
+                    "--block-size=1",
+                    "/",
+                ]
+            )
+
+            if result.exit_code != 0:
+                return None
+
+            first_value = (
+                result.stdout
+                .strip()
+                .split()[0]
+            )
+
+            return int(first_value)
+
+        except (
+            Exception,
+            ValueError,
+            IndexError,
+        ):
+            return None
+
     def _serialize_container(self, container):
         config = container.expanded_config or {}
+
+        devices = (
+            container.expanded_devices or {}
+        )
+
+        root_device = devices.get(
+            "root",
+            {},
+        )
+
+        configured_disk_size = (
+            root_device.get("size")
+        )
 
         data = {
             "name": container.name,
             "lxd_uuid": config.get("volatile.uuid"),
             "status": container.status,
             "type": "container",
-            "sampled_at": datetime.now(timezone.utc).isoformat(),
+            "sampled_at": datetime.now(
+                timezone.utc
+            ).isoformat(),
             "image": {
                 "os": config.get("image.os"),
                 "version": config.get("image.version"),
                 "release": config.get("image.release"),
-                "architecture": config.get("image.architecture"),
-                "description": config.get("image.description"),
+                "architecture": config.get(
+                    "image.architecture"
+                ),
+                "description": config.get(
+                    "image.description"
+                ),
             },
             "limits": {
                 "cpu": config.get("limits.cpu"),
@@ -243,6 +364,7 @@ class LXDService:
             },
             "ipv4": None,
             "pid": None,
+            "uptime_seconds": None,
             "processes": 0,
             "cpu": {
                 "usage_ns": 0,
@@ -254,13 +376,26 @@ class LXDService:
             },
             "disk": {
                 "used_bytes": None,
-                "total_bytes": None,
+                "allocated_bytes": None,
+                "percent": None,
+                "usage_source": None,
             },
             "network": {
                 "rx_bytes": 0,
                 "tx_bytes": 0,
             },
         }
+
+        if configured_disk_size:
+            try:
+                data["disk"][
+                    "allocated_bytes"
+                ] = parse_size_to_bytes(
+                    configured_disk_size
+                )
+
+            except ValueError:
+                pass
 
         # A stopped container does not have meaningful live metrics.
         if container.status != "Running":
@@ -269,20 +404,40 @@ class LXDService:
         state = container.state()
 
         data["pid"] = state.pid
+        data["uptime_seconds"] = (
+            self._get_process_uptime_seconds(
+                state.pid
+            )
+        )
         data["processes"] = state.processes or 0
 
         # CPU
         cpu = state.cpu or {}
-        data["cpu"]["usage_ns"] = cpu.get("usage", 0)
+        data["cpu"]["usage_ns"] = cpu.get(
+            "usage",
+            0,
+        )
 
         # Memory
         memory = state.memory or {}
 
-        used_memory = memory.get("usage", 0) or 0
-        total_memory = memory.get("total", 0) or 0
+        used_memory = memory.get(
+            "usage",
+            0,
+        ) or 0
 
-        data["memory"]["used_bytes"] = used_memory
-        data["memory"]["reported_total_bytes"] = total_memory
+        total_memory = memory.get(
+            "total",
+            0,
+        ) or 0
+
+        data["memory"]["used_bytes"] = (
+            used_memory
+        )
+
+        data["memory"][
+            "reported_total_bytes"
+        ] = total_memory
 
         if total_memory > 0:
             data["memory"]["percent"] = round(
@@ -292,14 +447,97 @@ class LXDService:
 
         # Disk
         disk = state.disk or {}
-        root_disk = disk.get("root", {})
 
-        disk_usage = root_disk.get("usage")
-        disk_total = root_disk.get("total")
+        root_disk = disk.get(
+            "root",
+            {},
+        )
 
+        disk_used = root_disk.get(
+            "usage"
+        )
+
+        disk_total = root_disk.get(
+            "total"
+        )
+
+        # Only trust LXD state usage if it reports
+        # a meaningful total. In our dir-pool setup
+        # 0/0 means usage is unavailable.
         if disk_total and disk_total > 0:
-            data["disk"]["used_bytes"] = disk_usage
-            data["disk"]["total_bytes"] = disk_total
+            data["disk"]["used_bytes"] = (
+                disk_used or 0
+            )
+
+            data["disk"][
+                "allocated_bytes"
+            ] = disk_total
+
+            data["disk"][
+                "usage_source"
+            ] = "lxd"
+
+        else:
+            # LXD does not provide meaningful disk
+            # usage for this storage setup. Use a
+            # low-frequency container-side fallback.
+            now = datetime.now(
+                timezone.utc
+            ).timestamp()
+
+            cached = self._disk_usage_cache.get(
+                container.name
+            )
+
+            if (
+                cached is None
+                or now - cached["sampled_at"]
+                >= self.DISK_USAGE_CACHE_SECONDS
+            ):
+                disk_used = (
+                    self.get_container_disk_usage_bytes(
+                        container.name
+                    )
+                )
+
+                self._disk_usage_cache[
+                    container.name
+                ] = {
+                    "used_bytes": disk_used,
+                    "sampled_at": now,
+                }
+
+            else:
+                disk_used = cached[
+                    "used_bytes"
+                ]
+
+            if disk_used is not None:
+                data["disk"][
+                    "used_bytes"
+                ] = disk_used
+
+                data["disk"][
+                    "usage_source"
+                ] = "exec"
+
+        used = data["disk"][
+            "used_bytes"
+        ]
+
+        allocated = data["disk"][
+            "allocated_bytes"
+        ]
+
+        if (
+            used is not None
+            and allocated
+            and allocated > 0
+        ):
+            data["disk"]["percent"] = round(
+                (used / allocated) * 100,
+                2,
+            )
 
         # Network
         network = state.network or {}
@@ -312,19 +550,34 @@ class LXDService:
             if interface_name == "lo":
                 continue
 
-            counters = interface.get("counters", {})
+            counters = interface.get(
+                "counters",
+                {},
+            )
 
-            rx_bytes += counters.get("bytes_received", 0)
-            tx_bytes += counters.get("bytes_sent", 0)
+            rx_bytes += counters.get(
+                "bytes_received",
+                0,
+            )
+
+            tx_bytes += counters.get(
+                "bytes_sent",
+                0,
+            )
 
             # Pick the first global IPv4 address.
             if data["ipv4"] is None:
-                for address in interface.get("addresses", []):
+                for address in interface.get(
+                    "addresses",
+                    [],
+                ):
                     if (
                         address.get("family") == "inet"
                         and address.get("scope") == "global"
                     ):
-                        data["ipv4"] = address.get("address")
+                        data["ipv4"] = address.get(
+                            "address"
+                        )
                         break
 
         data["network"]["rx_bytes"] = rx_bytes
