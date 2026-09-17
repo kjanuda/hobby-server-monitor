@@ -14,8 +14,16 @@ from api.resources import (
     StoragePoolsResource,
 )
 
+from middleware.authentication import (
+    AuthenticationMiddleware,
+)
 
-app = falcon.App()
+
+app = falcon.App(
+    middleware=[
+        AuthenticationMiddleware(),
+    ]
+)
 
 
 # Container and system resources

@@ -1,5 +1,6 @@
 import falcon
 
+from services.authorization import require_admin
 from services.lxd_service import LXDService
 
 
@@ -7,6 +8,7 @@ class ContainersResource:
     def __init__(self):
         self.lxd_service = LXDService()
 
+    @falcon.before(require_admin)
     def on_get(self, req, resp):
         try:
             containers = self.lxd_service.list_containers()

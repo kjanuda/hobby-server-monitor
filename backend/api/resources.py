@@ -1,5 +1,6 @@
 import falcon
 
+from services.authorization import require_admin
 from services.lxd_service import LXDService
 
 
@@ -7,6 +8,7 @@ class HostResourcesResource:
     def __init__(self):
         self.lxd_service = LXDService()
 
+    @falcon.before(require_admin)
     def on_get(self, req, resp):
         try:
             resp.media = self.lxd_service.get_host_resources()
@@ -23,6 +25,7 @@ class StoragePoolsResource:
     def __init__(self):
         self.lxd_service = LXDService()
 
+    @falcon.before(require_admin)
     def on_get(self, req, resp):
         try:
             pools = self.lxd_service.get_storage_pools()
