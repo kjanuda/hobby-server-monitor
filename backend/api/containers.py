@@ -12,6 +12,14 @@ from services.container_creation_service import (
     ContainerCreationError,
     ContainerCreationService,
 )
+from services.container_update_service import (
+    ContainerUpdateError,
+    ContainerUpdateService,
+)
+from services.container_deletion_service import (
+    ContainerDeletionError,
+    ContainerDeletionService,
+)
 from services.authorization import require_admin
 
 
@@ -155,6 +163,12 @@ class ContainerResource:
         self.access_service = (
             ContainerAccessService()
         )
+        self.update_service = (
+            ContainerUpdateService()
+        )
+        self.deletion_service = (
+            ContainerDeletionService()
+        )
 
     def on_get(
         self,
@@ -210,6 +224,134 @@ class ContainerResource:
         resp.media = {
             "container_id": container_record["id"],
             "container": container,
+        }
+
+        resp.status = falcon.HTTP_200
+
+    @falcon.before(require_admin)
+    def on_patch(
+        self,
+        req,
+        resp,
+        container_id,
+    ):
+        data = req.media or {}
+
+        allowed = {
+            "memory",
+            "cpu_cores",
+            "cpu_allowance",
+            "disk",
+        }
+
+        unknown = set(data) - allowed
+
+        if unknown:
+            resp.media = {
+                "error": (
+                    "Unknown fields: "
+                    + ", ".join(
+                        sorted(unknown)
+                    )
+                )
+            }
+            resp.status = falcon.HTTP_400
+            return
+
+        if not data:
+            resp.media = {
+                "error": (
+                    "No resource changes provided."
+                )
+            }
+            resp.status = falcon.HTTP_400
+            return
+
+        try:
+            container = (
+                self.update_service.update_limits(
+                    container_id=container_id,
+                    memory=data.get(
+                        "memory"
+                    ),
+                    cpu_cores=data.get(
+                        "cpu_cores"
+                    ),
+                    cpu_allowance=data.get(
+                        "cpu_allowance"
+                    ),
+                    disk=data.get(
+                        "disk"
+                    ),
+                    actor_email=(
+                        req.context.user[
+                            "email"
+                        ]
+                    ),
+                )
+            )
+
+        except ContainerUpdateError as exc:
+            resp.media = {
+                "error": str(exc)
+            }
+            resp.status = falcon.HTTP_400
+            return
+
+        resp.media = {
+            "message": (
+                "Container limits updated."
+            ),
+            "container": container,
+        }
+
+        resp.status = falcon.HTTP_200
+
+    @falcon.before(require_admin)
+    def on_delete(
+        self,
+        req,
+        resp,
+        container_id,
+    ):
+        data = req.media or {}
+
+        confirm_name = data.get(
+            "confirm_name"
+        )
+
+        if not confirm_name:
+            resp.media = {
+                "error": (
+                    "confirm_name is required."
+                )
+            }
+            resp.status = falcon.HTTP_400
+            return
+
+        try:
+            deleted = (
+                self.deletion_service.delete(
+                    container_id=container_id,
+                    confirm_name=confirm_name,
+                    actor_email=(
+                        req.context.user["email"]
+                    ),
+                )
+            )
+
+        except ContainerDeletionError as exc:
+            resp.media = {
+                "error": str(exc)
+            }
+            resp.status = falcon.HTTP_400
+            return
+
+        resp.media = {
+            "message": (
+                "Container deleted successfully."
+            ),
+            "container": deleted,
         }
 
         resp.status = falcon.HTTP_200

@@ -169,3 +169,20 @@ class ContainerRepository:
 
         finally:
             connection.close()
+
+    def delete_by_id(self, container_id):
+        connection = get_connection()
+
+        try:
+            connection.execute(
+                """
+                DELETE FROM containers
+                WHERE id = ?
+                """,
+                (container_id,),
+            )
+
+            connection.commit()
+
+        finally:
+            connection.close()
