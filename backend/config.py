@@ -71,6 +71,11 @@ SESSION_COOKIE_SECURE = (
     == "true"
 )
 
+CSRF_COOKIE_NAME = os.getenv(
+    "CSRF_COOKIE_NAME",
+    "hsm_csrf",
+).strip()
+
 
 # Metrics configuration
 

@@ -67,3 +67,25 @@ class OAuthStateRepository:
 
         finally:
             connection.close()
+
+    def delete_expired_states(
+        self,
+        current_time,
+    ):
+        connection = get_connection()
+
+        try:
+            cursor = connection.execute(
+                """
+                DELETE FROM oauth_states
+                WHERE expires_at <= ?
+                """,
+                (current_time,),
+            )
+
+            connection.commit()
+
+            return cursor.rowcount
+
+        finally:
+            connection.close()

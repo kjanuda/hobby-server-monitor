@@ -1,8 +1,11 @@
+import secrets
+
 import falcon
 
 from authlib.integrations.requests_client import OAuth2Session
 
 from config import (
+    CSRF_COOKIE_NAME,
     GOOGLE_AUTHORIZATION_ENDPOINT,
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
@@ -19,6 +22,24 @@ from services.user_service import (
     GoogleIdentityError,
     UserService,
 )
+
+
+def set_csrf_cookie(resp):
+    csrf_token = secrets.token_urlsafe(
+        32
+    )
+
+    resp.set_cookie(
+        CSRF_COOKIE_NAME,
+        csrf_token,
+        max_age=SESSION_TTL_SECONDS,
+        path="/",
+        secure=SESSION_COOKIE_SECURE,
+        http_only=False,
+        same_site="Lax",
+    )
+
+    return csrf_token
 
 
 class GoogleLoginResource:
@@ -163,6 +184,8 @@ class GoogleCallbackResource:
             same_site="Lax",
         )
 
+        set_csrf_cookie(resp)
+
         resp.status = falcon.HTTP_302
         resp.location = "/api/auth/me"
 
@@ -188,8 +211,18 @@ class CurrentUserResource:
             resp.status = falcon.HTTP_401
             return
 
+        csrf_token = req.cookies.get(
+            CSRF_COOKIE_NAME
+        )
+
+        if not csrf_token:
+            csrf_token = set_csrf_cookie(
+                resp
+            )
+
         resp.media = {
             "authenticated": True,
+            "csrf_token": csrf_token,
             "user": {
                 "id": user["id"],
                 "email": user["email"],
@@ -223,6 +256,12 @@ class LogoutResource:
 
         resp.unset_cookie(
             SESSION_COOKIE_NAME,
+            path="/",
+            same_site="Lax",
+        )
+
+        resp.unset_cookie(
+            CSRF_COOKIE_NAME,
             path="/",
             same_site="Lax",
         )

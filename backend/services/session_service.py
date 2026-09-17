@@ -11,6 +11,8 @@ class SessionService:
         self.repository = SessionRepository()
 
     def create_session(self, user_id):
+        self.cleanup_expired_sessions()
+
         raw_token = secrets.token_urlsafe(48)
         token_hash = self._hash_token(raw_token)
 

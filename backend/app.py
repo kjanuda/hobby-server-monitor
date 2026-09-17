@@ -52,10 +52,13 @@ from middleware.authentication import (
     AuthenticationMiddleware,
 )
 
+from middleware.csrf import CSRFMiddleware
+
 
 app = falcon.App(
     middleware=[
         AuthenticationMiddleware(),
+        CSRFMiddleware(),
     ]
 )
 

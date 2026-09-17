@@ -14,6 +14,8 @@ class OAuthStateService:
         self.repository = OAuthStateRepository()
 
     def create_state(self):
+        self.cleanup_expired_states()
+
         state = secrets.token_urlsafe(32)
 
         # PKCE verifier length is intentionally longer.
@@ -41,6 +43,18 @@ class OAuthStateService:
             current_time=self._format_time(
                 datetime.now(timezone.utc)
             ),
+        )
+
+    def cleanup_expired_states(self):
+        return (
+            self.repository
+            .delete_expired_states(
+                self._format_time(
+                    datetime.now(
+                        timezone.utc
+                    )
+                )
+            )
         )
 
     @staticmethod
