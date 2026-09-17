@@ -14,6 +14,45 @@ class LXDService:
             for container in self.client.containers.all()
         ]
 
+    def get_container(self, name):
+        """Return a single container with its current runtime state."""
+        container = self.client.containers.get(name)
+
+        return self._serialize_container(
+            container
+        )
+
+    def list_container_identities(self):
+        """Return stable LXD identities for all containers."""
+        identities = []
+
+        for container in self.client.containers.all():
+            config = container.expanded_config or {}
+
+            lxd_uuid = config.get("volatile.uuid")
+
+            if not lxd_uuid:
+                raise RuntimeError(
+                    f"Container '{container.name}' "
+                    "does not expose volatile.uuid."
+                )
+
+            description = getattr(
+                container,
+                "description",
+                None,
+            )
+
+            identities.append(
+                {
+                    "lxd_uuid": lxd_uuid,
+                    "lxd_name": container.name,
+                    "description": description,
+                }
+            )
+
+        return identities
+
     def get_host_resources(self):
         """Return host-level CPU and memory resources."""
         response = self.client.api.resources.get()

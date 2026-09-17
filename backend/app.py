@@ -8,7 +8,11 @@ from api.auth import (
     LogoutResource,
 )
 
-from api.containers import ContainersResource
+from api.containers import (
+    ContainerResource,
+    ContainersResource,
+)
+
 from api.resources import (
     HostResourcesResource,
     StoragePoolsResource,
@@ -17,6 +21,10 @@ from api.resources import (
 from api.users import (
     UserResource,
     UsersResource,
+)
+
+from api.container_access import (
+    ContainerAccessResource,
 )
 
 from middleware.authentication import (
@@ -34,6 +42,8 @@ app = falcon.App(
 # Container and system resources
 
 containers_resource = ContainersResource()
+container_resource = ContainerResource()
+
 host_resources_resource = HostResourcesResource()
 storage_pools_resource = StoragePoolsResource()
 
@@ -52,11 +62,23 @@ users_resource = UsersResource()
 user_resource = UserResource()
 
 
+# Container access resources
+
+container_access_resource = (
+    ContainerAccessResource()
+)
+
+
 # Container routes
 
 app.add_route(
     "/api/containers",
     containers_resource,
+)
+
+app.add_route(
+    "/api/containers/{container_id:int}",
+    container_resource,
 )
 
 app.add_route(
@@ -103,6 +125,14 @@ app.add_route(
 app.add_route(
     "/api/users/{user_id:int}",
     user_resource,
+)
+
+
+# Container access routes
+
+app.add_route(
+    "/api/users/{user_id:int}/containers/{container_id:int}",
+    container_access_resource,
 )
 
 
