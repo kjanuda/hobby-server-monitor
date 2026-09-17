@@ -14,6 +14,11 @@ from api.resources import (
     StoragePoolsResource,
 )
 
+from api.users import (
+    UserResource,
+    UsersResource,
+)
+
 from middleware.authentication import (
     AuthenticationMiddleware,
 )
@@ -39,6 +44,12 @@ google_login_resource = GoogleLoginResource()
 google_callback_resource = GoogleCallbackResource()
 current_user_resource = CurrentUserResource()
 logout_resource = LogoutResource()
+
+
+# User resources
+
+users_resource = UsersResource()
+user_resource = UserResource()
 
 
 # Container routes
@@ -79,6 +90,19 @@ app.add_route(
 app.add_route(
     "/api/auth/logout",
     logout_resource,
+)
+
+
+# User routes
+
+app.add_route(
+    "/api/users",
+    users_resource,
+)
+
+app.add_route(
+    "/api/users/{user_id:int}",
+    user_resource,
 )
 
 

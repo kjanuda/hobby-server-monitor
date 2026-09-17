@@ -3,9 +3,18 @@ import sqlite3
 
 from repositories.user_repository import UserRepository
 from services.audit_service import AuditService
+from services.session_service import SessionService
 
 
 class UserValidationError(Exception):
+    pass
+
+
+class UserNotFoundError(UserValidationError):
+    pass
+
+
+class UserOperationForbiddenError(Exception):
     pass
 
 
@@ -23,6 +32,7 @@ class UserService:
     def __init__(self):
         self.repository = UserRepository()
         self.audit_service = AuditService()
+        self.session_service = SessionService()
 
     def create_user(
         self,
@@ -32,6 +42,7 @@ class UserService:
         ram_quota_bytes=0,
         cpu_quota=0,
         disk_quota_bytes=0,
+        actor_email=None,
     ):
         email = self._validate_email(email)
         role = self._validate_role(role)
@@ -63,6 +74,7 @@ class UserService:
 
             self.audit_service.log(
                 action="user.created",
+                actor_email=actor_email,
                 user_id=user["id"],
                 details={
                     "email": user["email"],
@@ -286,10 +298,12 @@ class UserService:
             )
 
     def get_user_by_id(self, user_id):
-        user = self.repository.get_user_by_id(user_id)
+        user = self.repository.get_user_by_id(
+            user_id
+        )
 
         if not user:
-            raise UserValidationError(
+            raise UserNotFoundError(
                 "User not found."
             )
 
@@ -303,13 +317,15 @@ class UserService:
         ram_quota_bytes,
         cpu_quota,
         disk_quota_bytes,
+        actor_user_id=None,
+        actor_email=None,
     ):
         existing_user = self.repository.get_user_by_id(
             user_id
         )
 
         if not existing_user:
-            raise UserValidationError(
+            raise UserNotFoundError(
                 "User not found."
             )
 
@@ -330,6 +346,14 @@ class UserService:
             disk_quota_bytes,
         )
 
+        if (
+            actor_user_id == user_id
+            and role != "admin"
+        ):
+            raise UserOperationForbiddenError(
+                "Administrators cannot demote themselves."
+            )
+
         updated_user = self.repository.update_user(
             user_id=user_id,
             name=name,
@@ -341,25 +365,56 @@ class UserService:
 
         self.audit_service.log(
             action="user.updated",
+            actor_email=actor_email,
             user_id=user_id,
             details={
-                "role": role,
-                "ram_quota_bytes": ram_quota_bytes,
-                "cpu_quota": cpu_quota,
-                "disk_quota_bytes": disk_quota_bytes,
+                "before": {
+                    "role": existing_user["role"],
+                    "ram_quota_bytes": existing_user[
+                        "ram_quota_bytes"
+                    ],
+                    "cpu_quota": existing_user[
+                        "cpu_quota"
+                    ],
+                    "disk_quota_bytes": existing_user[
+                        "disk_quota_bytes"
+                    ],
+                },
+                "after": {
+                    "role": updated_user["role"],
+                    "ram_quota_bytes": updated_user[
+                        "ram_quota_bytes"
+                    ],
+                    "cpu_quota": updated_user[
+                        "cpu_quota"
+                    ],
+                    "disk_quota_bytes": updated_user[
+                        "disk_quota_bytes"
+                    ],
+                },
             },
         )
 
         return updated_user
 
-    def revoke_user(self, user_id):
+    def revoke_user(
+        self,
+        user_id,
+        actor_user_id=None,
+        actor_email=None,
+    ):
         existing_user = self.repository.get_user_by_id(
             user_id
         )
 
         if not existing_user:
-            raise UserValidationError(
+            raise UserNotFoundError(
                 "User not found."
+            )
+
+        if actor_user_id == user_id:
+            raise UserOperationForbiddenError(
+                "Administrators cannot revoke themselves."
             )
 
         if not existing_user["active"]:
@@ -371,11 +426,17 @@ class UserService:
             user_id
         )
 
+        self.session_service.revoke_all_user_sessions(
+            user_id
+        )
+
         self.audit_service.log(
             action="user.revoked",
+            actor_email=actor_email,
             user_id=user_id,
             details={
                 "email": revoked_user["email"],
+                "role": revoked_user["role"],
             },
         )
 
