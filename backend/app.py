@@ -13,6 +13,10 @@ from api.containers import (
     ContainersResource,
 )
 
+from api.metrics import (
+    ContainerMetricsResource,
+)
+
 from api.resources import (
     HostResourcesResource,
     StoragePoolsResource,
@@ -51,6 +55,10 @@ app = falcon.App(
 
 containers_resource = ContainersResource()
 container_resource = ContainerResource()
+
+container_metrics_resource = (
+    ContainerMetricsResource()
+)
 
 host_resources_resource = HostResourcesResource()
 storage_pools_resource = StoragePoolsResource()
@@ -95,6 +103,11 @@ app.add_route(
 app.add_route(
     "/api/containers/{container_id:int}",
     container_resource,
+)
+
+app.add_route(
+    "/api/containers/{container_id:int}/metrics",
+    container_metrics_resource,
 )
 
 app.add_route(

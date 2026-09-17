@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tinyflux import Point, TimeQuery, TinyFlux
+from tinyflux import (
+    Point,
+    TagQuery,
+    TimeQuery,
+    TinyFlux,
+)
 
 from config import (
     METRICS_DB_PATH,
@@ -49,6 +54,27 @@ class MetricsStore:
             return db.remove(
                 TimeQuery() < cutoff
             )
+
+    def search_container(
+        self,
+        container_uuid,
+        since,
+    ):
+        tags = TagQuery()
+        time_query = TimeQuery()
+
+        query = (
+            (tags.container_uuid == str(container_uuid))
+            & (time_query >= since)
+        )
+
+        with TinyFlux(str(self.path)) as db:
+            points = db.search(query)
+
+        return sorted(
+            points,
+            key=lambda point: point.time,
+        )
 
     def all_points(self):
         with TinyFlux(str(self.path)) as db:
