@@ -1,0 +1,22 @@
+[Unit]
+Description=Hobby Server Monitor Falcon API
+After=snap.lxd.daemon.service network.target
+Wants=snap.lxd.daemon.service
+
+[Service]
+Type=simple
+User=januda
+SupplementaryGroups=lxd
+WorkingDirectory=/home/januda/projects/hobby-server-monitor/backend
+EnvironmentFile=/home/januda/projects/hobby-server-monitor/.env
+ExecStart=/home/januda/projects/hobby-server-monitor/backend/.venv/bin/python /home/januda/projects/hobby-server-monitor/backend/app.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
