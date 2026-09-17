@@ -1,6 +1,11 @@
 from repositories.container_repository import ContainerRepository
+
 from services.audit_service import AuditService
 from services.lxd_service import LXDService
+from services.quota_service import (
+    QuotaService,
+    QuotaValidationError,
+)
 from services.resource_utils import parse_size_to_bytes
 
 
@@ -9,10 +14,12 @@ class ContainerUpdateError(Exception):
 
 
 class ContainerUpdateService:
+
     def __init__(self):
         self.repository = ContainerRepository()
         self.lxd_service = LXDService()
         self.audit_service = AuditService()
+        self.quota_service = QuotaService()
 
     def update_limits(
         self,
@@ -47,6 +54,59 @@ class ContainerUpdateService:
                     "limits.cpu.allowance"
                 ),
             }
+
+            config = container.expanded_config or {}
+            devices = container.expanded_devices or {}
+
+            current_memory = config.get(
+                "limits.memory"
+            )
+
+            current_cpu = config.get(
+                "limits.cpu"
+            )
+
+            current_root = devices.get(
+                "root",
+                {},
+            )
+
+            current_disk = current_root.get(
+                "size"
+            )
+
+            current_pool = current_root.get(
+                "pool"
+            )
+
+            try:
+                final_memory_bytes = (
+                    parse_size_to_bytes(memory)
+                    if memory is not None
+                    else parse_size_to_bytes(
+                        current_memory
+                    )
+                )
+
+                final_cpu_cores = (
+                    cpu_cores
+                    if cpu_cores is not None
+                    else int(current_cpu)
+                )
+
+                final_disk_bytes = (
+                    parse_size_to_bytes(disk)
+                    if disk is not None
+                    else parse_size_to_bytes(
+                        current_disk
+                    )
+                )
+
+            except (ValueError, TypeError) as exc:
+                raise ContainerUpdateError(
+                    "Unable to determine current "
+                    "container limits."
+                ) from exc
 
             if memory is not None:
                 memory_bytes = parse_size_to_bytes(
@@ -132,6 +192,20 @@ class ContainerUpdateService:
 
                 root["size"] = f"{disk_bytes}B"
                 container.devices["root"] = root
+
+            try:
+                self.quota_service.validate_update(
+                    container_id=container_id,
+                    memory_bytes=final_memory_bytes,
+                    cpu_cores=final_cpu_cores,
+                    disk_bytes=final_disk_bytes,
+                    storage_pool=current_pool,
+                )
+
+            except QuotaValidationError as exc:
+                raise ContainerUpdateError(
+                    str(exc)
+                ) from exc
 
             container.save(wait=True)
 

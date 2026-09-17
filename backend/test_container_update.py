@@ -1,18 +1,22 @@
 from falcon import testing
 
 from app import app
+
 from config import (
     BOOTSTRAP_ADMIN_EMAIL,
     SESSION_COOKIE_NAME,
 )
+
 from repositories.container_repository import (
     ContainerRepository,
 )
+
 from services.session_service import SessionService
 from services.user_service import UserService
 
 
 client = testing.TestClient(app)
+
 sessions = SessionService()
 users = UserService()
 containers = ContainerRepository()
@@ -63,6 +67,6 @@ assert response.status_code == 200
 sessions.delete_session(token)
 
 print(
-    "PASS: running container limits "
+    "PASS: stopped container limits "
     "can be updated"
 )
