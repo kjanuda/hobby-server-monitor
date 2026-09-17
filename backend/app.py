@@ -31,6 +31,10 @@ from api.container_options import (
     ContainerOptionsResource,
 )
 
+from api.container_actions import (
+    ContainerActionResource,
+)
+
 from middleware.authentication import (
     AuthenticationMiddleware,
 )
@@ -53,6 +57,10 @@ storage_pools_resource = StoragePoolsResource()
 
 container_options_resource = (
     ContainerOptionsResource()
+)
+
+container_action_resource = (
+    ContainerActionResource()
 )
 
 
@@ -102,6 +110,11 @@ app.add_route(
 app.add_route(
     "/api/container-options",
     container_options_resource,
+)
+
+app.add_route(
+    "/api/containers/{container_id:int}/actions/{action}",
+    container_action_resource,
 )
 
 
