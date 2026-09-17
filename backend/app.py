@@ -39,6 +39,10 @@ from api.container_actions import (
     ContainerActionResource,
 )
 
+from api.terminal import (
+    ContainerTerminalResource,
+)
+
 from middleware.authentication import (
     AuthenticationMiddleware,
 )
@@ -51,9 +55,12 @@ app = falcon.App(
 )
 
 
+# ============================================================
 # Container and system resources
+# ============================================================
 
 containers_resource = ContainersResource()
+
 container_resource = ContainerResource()
 
 container_metrics_resource = (
@@ -61,6 +68,7 @@ container_metrics_resource = (
 )
 
 host_resources_resource = HostResourcesResource()
+
 storage_pools_resource = StoragePoolsResource()
 
 container_options_resource = (
@@ -71,29 +79,45 @@ container_action_resource = (
     ContainerActionResource()
 )
 
+container_terminal_resource = (
+    ContainerTerminalResource()
+)
 
+
+# ============================================================
 # Authentication resources
+# ============================================================
 
 google_login_resource = GoogleLoginResource()
+
 google_callback_resource = GoogleCallbackResource()
+
 current_user_resource = CurrentUserResource()
+
 logout_resource = LogoutResource()
 
 
+# ============================================================
 # User resources
+# ============================================================
 
 users_resource = UsersResource()
+
 user_resource = UserResource()
 
 
+# ============================================================
 # Container access resources
+# ============================================================
 
 container_access_resource = (
     ContainerAccessResource()
 )
 
 
+# ============================================================
 # Container routes
+# ============================================================
 
 app.add_route(
     "/api/containers",
@@ -130,8 +154,15 @@ app.add_route(
     container_action_resource,
 )
 
+app.add_route(
+    "/api/containers/{container_id:int}/terminal",
+    container_terminal_resource,
+)
 
+
+# ============================================================
 # Authentication routes
+# ============================================================
 
 app.add_route(
     "/api/auth/google/login",
@@ -154,7 +185,9 @@ app.add_route(
 )
 
 
+# ============================================================
 # User routes
+# ============================================================
 
 app.add_route(
     "/api/users",
@@ -167,7 +200,9 @@ app.add_route(
 )
 
 
+# ============================================================
 # Container access routes
+# ============================================================
 
 app.add_route(
     "/api/users/{user_id:int}/containers/{container_id:int}",
@@ -175,7 +210,9 @@ app.add_route(
 )
 
 
+# ============================================================
 # Health check
+# ============================================================
 
 class HealthResource:
     def on_get(self, req, resp):
@@ -190,6 +227,10 @@ app.add_route(
     HealthResource(),
 )
 
+
+# ============================================================
+# Application entry point
+# ============================================================
 
 if __name__ == "__main__":
     serve(
