@@ -27,6 +27,10 @@ from api.container_access import (
     ContainerAccessResource,
 )
 
+from api.container_options import (
+    ContainerOptionsResource,
+)
+
 from middleware.authentication import (
     AuthenticationMiddleware,
 )
@@ -46,6 +50,10 @@ container_resource = ContainerResource()
 
 host_resources_resource = HostResourcesResource()
 storage_pools_resource = StoragePoolsResource()
+
+container_options_resource = (
+    ContainerOptionsResource()
+)
 
 
 # Authentication resources
@@ -89,6 +97,11 @@ app.add_route(
 app.add_route(
     "/api/storage-pools",
     storage_pools_resource,
+)
+
+app.add_route(
+    "/api/container-options",
+    container_options_resource,
 )
 
 

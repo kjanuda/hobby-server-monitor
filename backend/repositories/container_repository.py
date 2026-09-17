@@ -140,3 +140,32 @@ class ContainerRepository:
 
         finally:
             connection.close()
+
+    def set_owner(
+        self,
+        container_id,
+        owner_user_id,
+    ):
+        connection = get_connection()
+
+        try:
+            connection.execute(
+                """
+                UPDATE containers
+                SET
+                    owner_user_id = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    owner_user_id,
+                    container_id,
+                ),
+            )
+
+            connection.commit()
+
+            return self.get_by_id(container_id)
+
+        finally:
+            connection.close()

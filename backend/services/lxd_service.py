@@ -4,6 +4,11 @@ import pylxd
 
 
 class LXDService:
+    ALLOWED_UBUNTU_RELEASES = {
+        "24.04",
+        "22.04",
+    }
+
     def __init__(self):
         self.client = pylxd.Client()
 
@@ -18,9 +23,7 @@ class LXDService:
         """Return a single container with its current runtime state."""
         container = self.client.containers.get(name)
 
-        return self._serialize_container(
-            container
-        )
+        return self._serialize_container(container)
 
     def list_container_identities(self):
         """Return stable LXD identities for all containers."""
@@ -112,6 +115,111 @@ class LXDService:
             )
 
         return pools
+
+    def get_networks(self):
+        """Return available LXD networks."""
+        networks = []
+
+        for network in self.client.networks.all():
+            networks.append(
+                {
+                    "name": network.name,
+                    "type": network.type,
+                    "managed": network.managed,
+                }
+            )
+
+        return networks
+
+    def get_image_aliases(self):
+        """Return unique aliases from locally available LXD images."""
+        aliases = []
+
+        for image in self.client.images.all():
+            for alias in image.aliases or []:
+                name = alias.get("name")
+
+                if name:
+                    aliases.append(name)
+
+        return sorted(set(aliases))
+
+    def create_container(
+        self,
+        name,
+        image_alias,
+        memory_bytes,
+        cpu_cores,
+        cpu_allowance,
+        disk_bytes,
+        storage_pool,
+        network,
+        ephemeral=False,
+        autostart=True,
+        description=None,
+    ):
+        """Create an Ubuntu LXD container from a remote image."""
+        if image_alias not in self.ALLOWED_UBUNTU_RELEASES:
+            raise ValueError(
+                f"Unsupported Ubuntu release: {image_alias}. "
+                f"Allowed releases: "
+                f"{', '.join(sorted(self.ALLOWED_UBUNTU_RELEASES))}"
+            )
+
+        config = {
+            "name": name,
+            "description": description or "",
+            "ephemeral": bool(ephemeral),
+            "profiles": [],
+            "config": {
+                "limits.memory": f"{memory_bytes}B",
+                "limits.cpu": str(cpu_cores),
+                "limits.cpu.allowance": (
+                    f"{cpu_allowance}%"
+                ),
+                "boot.autostart": (
+                    "true" if autostart else "false"
+                ),
+            },
+            "devices": {
+                "root": {
+                    "type": "disk",
+                    "path": "/",
+                    "pool": storage_pool,
+                    "size": f"{disk_bytes}B",
+                },
+                "eth0": {
+                    "type": "nic",
+                    "name": "eth0",
+                    "network": network,
+                },
+            },
+            "source": {
+                "type": "image",
+                "mode": "pull",
+                "server": (
+                    "https://cloud-images.ubuntu.com/releases/"
+                ),
+                "protocol": "simplestreams",
+                "alias": image_alias,
+            },
+        }
+
+        container = self.client.containers.create(
+            config,
+            wait=True,
+        )
+
+        return container
+
+    def delete_container_by_name(self, name):
+        """Stop and delete an LXD container by name."""
+        container = self.client.containers.get(name)
+
+        if container.status == "Running":
+            container.stop(wait=True)
+
+        container.delete(wait=True)
 
     def _serialize_container(self, container):
         config = container.expanded_config or {}
