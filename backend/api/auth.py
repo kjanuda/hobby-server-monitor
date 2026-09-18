@@ -187,7 +187,7 @@ class GoogleCallbackResource:
         set_csrf_cookie(resp)
 
         resp.status = falcon.HTTP_302
-        resp.location = "/api/auth/me"
+        resp.location = "/"
 
 
 class CurrentUserResource:
