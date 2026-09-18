@@ -26,6 +26,9 @@ from services.authorization import require_admin
 class ContainersResource:
     def __init__(self):
         self.lxd_service = LXDService()
+        self.container_repository = (
+            ContainerRepository()
+        )
         self.access_service = (
             ContainerAccessService()
         )
@@ -36,6 +39,26 @@ class ContainersResource:
     def on_get(self, req, resp):
         try:
             containers = self.lxd_service.list_containers()
+
+            records = (
+                self.container_repository.list_all()
+            )
+
+            records_by_name = {
+                record["lxd_name"]: record
+                for record in records
+            }
+
+            for container in containers:
+                record = records_by_name.get(
+                    container["name"]
+                )
+
+                container["container_id"] = (
+                    record["id"]
+                    if record
+                    else None
+                )
 
             user = req.context.user
 
