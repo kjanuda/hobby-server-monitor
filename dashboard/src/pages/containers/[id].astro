@@ -1,0 +1,1490 @@
+---
+const { id } = Astro.params;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <meta
+      name="viewport"
+      content="width=device-width"
+    />
+
+    <title>
+      Container | Hobby Server Monitor
+    </title>
+  </head>
+
+  <body>
+    <main
+      id="page"
+      data-container-id={id}
+    >
+      <header class="topbar">
+        <div>
+          <a
+            href="/"
+            class="back-link"
+          >
+            ← Back to dashboard
+          </a>
+
+          <p class="eyebrow">
+            LXD Container
+          </p>
+
+          <h1 id="container-name">
+            Loading...
+          </h1>
+
+          <p
+            id="container-image"
+            class="muted"
+          >
+          </p>
+        </div>
+
+        <div
+          id="status"
+          class="status-badge"
+        >
+          —
+        </div>
+      </header>
+
+      <section class="grid">
+        <article class="metric-card">
+          <span>IPv4</span>
+          <strong id="ipv4">—</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Uptime</span>
+          <strong id="uptime">—</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Processes</span>
+          <strong id="processes">—</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Memory</span>
+          <strong id="memory">—</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Disk used</span>
+          <strong id="disk">—</strong>
+        </article>
+
+        <article class="metric-card">
+          <span>Network RX / TX</span>
+          <strong id="network">—</strong>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">
+              Runtime controls
+            </p>
+
+            <h2>
+              Container actions
+            </h2>
+          </div>
+        </div>
+
+        <div
+          id="actions"
+          class="actions"
+        >
+          <button data-action="start">
+            Start
+          </button>
+
+          <button data-action="stop">
+            Stop
+          </button>
+
+          <button data-action="restart">
+            Restart
+          </button>
+
+          <button data-action="freeze">
+            Freeze
+          </button>
+
+          <button data-action="unfreeze">
+            Unfreeze
+          </button>
+        </div>
+
+        <p
+          id="action-message"
+          class="message"
+        ></p>
+      </section>
+
+      <!-- Metrics -->
+      <section class="panel">
+        <div class="panel-heading metrics-heading">
+          <div>
+            <p class="eyebrow">
+              Historical telemetry
+            </p>
+
+            <h2>
+              Performance
+            </h2>
+          </div>
+
+          <div
+            id="range-selector"
+            class="range-selector"
+          >
+            <button data-hours="1">
+              1h
+            </button>
+
+            <button
+              data-hours="6"
+              class="active"
+            >
+              6h
+            </button>
+
+            <button data-hours="24">
+              24h
+            </button>
+
+            <button data-hours="48">
+              48h
+            </button>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <article class="chart-card">
+            <div class="chart-title">
+              <span>
+                CPU usage
+              </span>
+
+              <strong id="latest-cpu">
+                —
+              </strong>
+            </div>
+
+            <div
+              id="cpu-chart"
+              class="chart"
+            ></div>
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">
+              <span>
+                Memory usage
+              </span>
+
+              <strong id="latest-memory">
+                —
+              </strong>
+            </div>
+
+            <div
+              id="memory-chart"
+              class="chart"
+            ></div>
+          </article>
+
+          <article class="chart-card wide">
+            <div class="chart-title">
+              <span>
+                Network throughput
+              </span>
+
+              <strong id="latest-network">
+                —
+              </strong>
+            </div>
+
+            <div
+              id="network-chart"
+              class="chart"
+            ></div>
+
+            <div class="legend">
+              <span>
+                <i class="rx-dot"></i>
+                RX
+              </span>
+
+              <span>
+                <i class="tx-dot"></i>
+                TX
+              </span>
+            </div>
+          </article>
+        </div>
+
+        <p
+          id="metrics-message"
+          class="message"
+        ></p>
+      </section>
+
+      <!-- Terminal -->
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">
+              Container exec
+            </p>
+
+            <h2>
+              Terminal
+            </h2>
+          </div>
+        </div>
+
+        <form
+          id="terminal-form"
+          class="terminal-form"
+        >
+          <div class="terminal-input-row">
+            <span class="prompt">
+              $
+            </span>
+
+            <input
+              id="terminal-command"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="uname -a"
+              maxlength="1024"
+            />
+
+            <button
+              id="terminal-run"
+              type="submit"
+            >
+              Run
+            </button>
+          </div>
+        </form>
+
+        <div
+          id="terminal-output"
+          class="terminal-output"
+        >
+          <div class="terminal-empty">
+            Run a command inside this container.
+          </div>
+        </div>
+
+        <div class="terminal-footer">
+          <span id="terminal-exit">
+            Exit —
+          </span>
+
+          <span id="terminal-truncated"></span>
+        </div>
+      </section>
+
+      <section
+        id="error"
+        class="error hidden"
+      ></section>
+    </main>
+
+    <script>
+      import {
+        executeTerminalCommand,
+        getContainer,
+        getContainerMetrics,
+        getCurrentUser,
+        runContainerAction,
+        type MetricPoint,
+      } from "../../lib/api";
+
+      const page =
+        document.querySelector<HTMLElement>(
+          "#page",
+        );
+
+      const rawId =
+        page?.dataset.containerId;
+
+      const containerId =
+        Number(rawId);
+
+      function formatBytes(
+        value?: number | null,
+      ) {
+        if (
+          value === null
+          || value === undefined
+        ) {
+          return "—";
+        }
+
+        const units = [
+          "B",
+          "KiB",
+          "MiB",
+          "GiB",
+          "TiB",
+        ];
+
+        let size = value;
+        let index = 0;
+
+        while (
+          size >= 1024
+          && index < units.length - 1
+        ) {
+          size /= 1024;
+          index += 1;
+        }
+
+        return `${size.toFixed(
+          index === 0 ? 0 : 1,
+        )} ${units[index]}`;
+      }
+
+      function formatUptime(
+        seconds?: number | null,
+      ) {
+        if (
+          seconds === null
+          || seconds === undefined
+        ) {
+          return "—";
+        }
+
+        const totalMinutes =
+          Math.floor(seconds / 60);
+
+        const days =
+          Math.floor(
+            totalMinutes / 1440,
+          );
+
+        const hours =
+          Math.floor(
+            (totalMinutes % 1440)
+            / 60,
+          );
+
+        const minutes =
+          totalMinutes % 60;
+
+        if (days > 0) {
+          return `${days}d ${hours}h`;
+        }
+
+        if (hours > 0) {
+          return `${hours}h ${minutes}m`;
+        }
+
+        return `${minutes}m`;
+      }
+
+      function setText(
+        selector: string,
+        value: string,
+      ) {
+        const element =
+          document.querySelector<HTMLElement>(
+            selector,
+          );
+
+        if (element) {
+          element.textContent = value;
+        }
+      }
+
+      let selectedHours = 6;
+
+      function chartSvg(
+        values: Array<number | null>,
+        maximum?: number,
+        secondary?: Array<number | null>,
+      ) {
+        const width = 600;
+        const height = 170;
+        const padding = 10;
+
+        const validValues = [
+          ...values,
+          ...(secondary ?? []),
+        ].filter(
+          (value): value is number =>
+            typeof value === "number"
+            && Number.isFinite(value),
+        );
+
+        if (validValues.length < 2) {
+          return `
+            <div class="chart-empty">
+              Not enough samples yet.
+            </div>
+          `;
+        }
+
+        const maxValue =
+          maximum
+          ?? Math.max(
+            ...validValues,
+            1,
+          );
+
+        function makePath(
+          series: Array<number | null>,
+        ) {
+          const usable =
+            Math.max(series.length - 1, 1);
+
+          const points = series
+            .map((value, index) => {
+              if (
+                value === null
+                || !Number.isFinite(value)
+              ) {
+                return null;
+              }
+
+              const x =
+                padding
+                + (
+                  index
+                  / usable
+                )
+                * (
+                  width
+                  - padding * 2
+                );
+
+              const normalized =
+                Math.min(
+                  Math.max(
+                    value / maxValue,
+                    0,
+                  ),
+                  1,
+                );
+
+              const y =
+                height
+                - padding
+                - normalized
+                  * (
+                    height
+                    - padding * 2
+                  );
+
+              return `${x.toFixed(1)},${y.toFixed(1)}`;
+            })
+            .filter(Boolean);
+
+          return points.join(" ");
+        }
+
+        const primaryPath =
+          makePath(values);
+
+        const secondaryPath =
+          secondary
+            ? makePath(secondary)
+            : "";
+
+        return `
+          <svg
+            viewBox="0 0 ${width} ${height}"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <line
+              x1="0"
+              y1="${height * 0.25}"
+              x2="${width}"
+              y2="${height * 0.25}"
+              class="grid-line"
+            />
+
+            <line
+              x1="0"
+              y1="${height * 0.5}"
+              x2="${width}"
+              y2="${height * 0.5}"
+              class="grid-line"
+            />
+
+            <line
+              x1="0"
+              y1="${height * 0.75}"
+              x2="${width}"
+              y2="${height * 0.75}"
+              class="grid-line"
+            />
+
+            <polyline
+              points="${primaryPath}"
+              class="chart-line primary"
+            />
+
+            ${
+              secondary
+                ? `
+                  <polyline
+                    points="${secondaryPath}"
+                    class="chart-line secondary"
+                  />
+                `
+                : ""
+            }
+          </svg>
+        `;
+      }
+
+      function formatRate(
+        value?: number | null,
+      ) {
+        if (
+          value === undefined
+          || value === null
+        ) {
+          return "—";
+        }
+
+        return `${formatBytes(value)}/s`;
+      }
+
+      async function loadMetrics() {
+        const message =
+          document.querySelector<HTMLElement>(
+            "#metrics-message",
+          );
+
+        if (message) {
+          message.textContent =
+            "Loading metrics...";
+        }
+
+        try {
+          const metrics =
+            await getContainerMetrics(
+              containerId,
+              selectedHours,
+              180,
+            );
+
+          const points =
+            metrics.points;
+
+          const cpuValues =
+            points.map(
+              (point: MetricPoint) =>
+                point.cpu_percent,
+            );
+
+          const memoryValues =
+            points.map(
+              (point: MetricPoint) =>
+                point.memory_percent,
+            );
+
+          const rxValues =
+            points.map(
+              (point: MetricPoint) =>
+                point.rx_bytes_per_second,
+            );
+
+          const txValues =
+            points.map(
+              (point: MetricPoint) =>
+                point.tx_bytes_per_second,
+            );
+
+          const cpuChart =
+            document.querySelector<HTMLElement>(
+              "#cpu-chart",
+            );
+
+          const memoryChart =
+            document.querySelector<HTMLElement>(
+              "#memory-chart",
+            );
+
+          const networkChart =
+            document.querySelector<HTMLElement>(
+              "#network-chart",
+            );
+
+          if (cpuChart) {
+            cpuChart.innerHTML =
+              chartSvg(
+                cpuValues,
+                100,
+              );
+          }
+
+          if (memoryChart) {
+            memoryChart.innerHTML =
+              chartSvg(
+                memoryValues,
+                100,
+              );
+          }
+
+          if (networkChart) {
+            networkChart.innerHTML =
+              chartSvg(
+                rxValues,
+                undefined,
+                txValues,
+              );
+          }
+
+          const latest =
+            points.at(-1);
+
+          setText(
+            "#latest-cpu",
+            latest?.cpu_percent !== null
+            && latest?.cpu_percent !== undefined
+              ? `${latest.cpu_percent.toFixed(1)}%`
+              : "—",
+          );
+
+          setText(
+            "#latest-memory",
+            latest?.memory_percent !== null
+            && latest?.memory_percent !== undefined
+              ? `${latest.memory_percent.toFixed(1)}%`
+              : "—",
+          );
+
+          setText(
+            "#latest-network",
+            latest
+              ? (
+                `${formatRate(
+                  latest.rx_bytes_per_second,
+                )} / ${formatRate(
+                  latest.tx_bytes_per_second,
+                )}`
+              )
+              : "—",
+          );
+
+          if (message) {
+            message.textContent =
+              `${metrics.sample_count} samples · `
+              + `${metrics.returned_count} plotted`;
+          }
+        } catch (cause) {
+          if (message) {
+            message.textContent =
+              cause instanceof Error
+                ? cause.message
+                : "Unable to load metrics.";
+          }
+        }
+      }
+
+      document
+        .querySelectorAll<HTMLButtonElement>(
+          "[data-hours]",
+        )
+        .forEach((button) => {
+          button.addEventListener(
+            "click",
+            async () => {
+              const value =
+                Number(
+                  button.dataset.hours,
+                );
+
+              if (
+                ![1, 6, 24, 48]
+                  .includes(value)
+              ) {
+                return;
+              }
+
+              selectedHours = value;
+
+              document
+                .querySelectorAll(
+                  "[data-hours]",
+                )
+                .forEach((item) => {
+                  item.classList.remove(
+                    "active",
+                  );
+                });
+
+              button.classList.add(
+                "active",
+              );
+
+              await loadMetrics();
+            },
+          );
+        });
+
+      const terminalForm =
+        document.querySelector<HTMLFormElement>(
+          "#terminal-form",
+        );
+
+      const terminalInput =
+        document.querySelector<HTMLInputElement>(
+          "#terminal-command",
+        );
+
+      const terminalRun =
+        document.querySelector<HTMLButtonElement>(
+          "#terminal-run",
+        );
+
+      const terminalOutput =
+        document.querySelector<HTMLElement>(
+          "#terminal-output",
+        );
+
+      terminalForm?.addEventListener(
+        "submit",
+        async (event) => {
+          event.preventDefault();
+
+          const command =
+            terminalInput?.value.trim()
+            ?? "";
+
+          if (!command) {
+            return;
+          }
+
+          if (terminalRun) {
+            terminalRun.disabled = true;
+            terminalRun.textContent =
+              "Running...";
+          }
+
+          if (terminalOutput) {
+            terminalOutput.textContent =
+              "";
+          }
+
+          try {
+            const result =
+              await executeTerminalCommand(
+                containerId,
+                command,
+              );
+
+            if (terminalOutput) {
+              const stdout =
+                document.createElement("pre");
+
+              stdout.className =
+                "terminal-stdout";
+
+              stdout.textContent =
+                result.stdout
+                || (
+                  result.stderr
+                    ? ""
+                    : "(no output)"
+                );
+
+              terminalOutput.appendChild(
+                stdout,
+              );
+
+              if (result.stderr) {
+                const stderr =
+                  document.createElement("pre");
+
+                stderr.className =
+                  "terminal-stderr";
+
+                stderr.textContent =
+                  result.stderr;
+
+                terminalOutput.appendChild(
+                  stderr,
+                );
+              }
+            }
+
+            setText(
+              "#terminal-exit",
+              `Exit ${result.exit_code}`,
+            );
+
+            setText(
+              "#terminal-truncated",
+              result.truncated
+                ? "Output truncated"
+                : "",
+            );
+          } catch (cause) {
+            if (terminalOutput) {
+              terminalOutput.textContent =
+                cause instanceof Error
+                  ? cause.message
+                  : "Command failed.";
+            }
+
+            setText(
+              "#terminal-exit",
+              "Exit —",
+            );
+          } finally {
+            if (terminalRun) {
+              terminalRun.disabled = false;
+              terminalRun.textContent = "Run";
+            }
+
+            terminalInput?.focus();
+          }
+        },
+      );
+
+      async function loadContainer() {
+        try {
+          const auth =
+            await getCurrentUser();
+
+          if (!auth) {
+            window.location.href = "/";
+            return;
+          }
+
+          const data =
+            await getContainer(
+              containerId,
+            );
+
+          const container =
+            data.container;
+
+          setText(
+            "#container-name",
+            container.name,
+          );
+
+          setText(
+            "#container-image",
+            container.image?.description
+              ?? "Unknown image",
+          );
+
+          setText(
+            "#status",
+            container.status,
+          );
+
+          setText(
+            "#ipv4",
+            container.ipv4
+              ?? "No IPv4",
+          );
+
+          setText(
+            "#uptime",
+            formatUptime(
+              container.uptime_seconds,
+            ),
+          );
+
+          setText(
+            "#processes",
+            String(
+              container.processes ?? 0,
+            ),
+          );
+
+          const memoryUsed =
+            formatBytes(
+              container.memory
+                ?.used_bytes,
+            );
+
+          const memoryPercent =
+            container.memory
+              ?.percent;
+
+          setText(
+            "#memory",
+            memoryPercent !== null
+            && memoryPercent !== undefined
+              ? `${memoryUsed} (${memoryPercent.toFixed(1)}%)`
+              : memoryUsed,
+          );
+
+          setText(
+            "#disk",
+            formatBytes(
+              container.disk
+                ?.used_bytes,
+            ),
+          );
+
+          setText(
+            "#network",
+            `${formatBytes(
+              container.network
+                ?.rx_bytes,
+            )} / ${formatBytes(
+              container.network
+                ?.tx_bytes,
+            )}`,
+          );
+
+          const actions =
+            document.querySelector<HTMLElement>(
+              "#actions",
+            );
+
+          if (
+            auth.user.role !== "admin"
+          ) {
+            actions?.classList.add(
+              "hidden",
+            );
+          }
+        } catch (cause) {
+          const error =
+            document.querySelector<HTMLElement>(
+              "#error",
+            );
+
+          if (error) {
+            error.textContent =
+              cause instanceof Error
+                ? cause.message
+                : "Unable to load container.";
+
+            error.classList.remove(
+              "hidden",
+            );
+          }
+        }
+      }
+
+      document
+        .querySelectorAll<HTMLButtonElement>(
+          "[data-action]",
+        )
+        .forEach((button) => {
+          button.addEventListener(
+            "click",
+            async () => {
+              const action =
+                button.dataset.action;
+
+              if (!action) {
+                return;
+              }
+
+              const message =
+                document.querySelector<HTMLElement>(
+                  "#action-message",
+                );
+
+              button.disabled = true;
+
+              if (message) {
+                message.textContent =
+                  `Running ${action}...`;
+              }
+
+              try {
+                await runContainerAction(
+                  containerId,
+                  action,
+                );
+
+                if (message) {
+                  message.textContent =
+                    `${action} completed successfully.`;
+                }
+
+                await loadContainer();
+                await loadMetrics();
+              } catch (cause) {
+                if (message) {
+                  message.textContent =
+                    cause instanceof Error
+                      ? cause.message
+                      : "Action failed.";
+                }
+              } finally {
+                button.disabled = false;
+              }
+            },
+          );
+        });
+
+      loadMetrics();
+      loadContainer();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      sans-serif;
+    color: #f4f5f7;
+    background: #0b0d10;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  #page {
+    width: min(
+      calc(100% - 40px),
+      1250px
+    );
+    margin: 0 auto;
+    padding: 48px 0 80px;
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: 36px;
+    color: #8e96a3;
+    font-size: 12px;
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    color: #f4f5f7;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 30px;
+  }
+
+  .eyebrow {
+    margin: 0 0 10px;
+    color: #737c8a;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(
+      34px,
+      5vw,
+      52px
+    );
+    letter-spacing: -0.05em;
+  }
+
+  .muted {
+    color: #858e9b;
+  }
+
+  .status-badge {
+    padding: 10px 15px;
+    border: 1px solid #2b3037;
+    border-radius: 999px;
+    color: #b6bdc6;
+    background: #111318;
+    font-size: 12px;
+  }
+
+  .grid {
+    margin-top: 40px;
+    display: grid;
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .metric-card,
+  .panel {
+    border: 1px solid #23272d;
+    background: #111318;
+  }
+
+  .metric-card {
+    min-height: 120px;
+    padding: 22px;
+    border-radius: 13px;
+  }
+
+  .metric-card span {
+    display: block;
+    color: #78818e;
+    font-size: 11px;
+  }
+
+  .metric-card strong {
+    margin-top: 14px;
+    display: block;
+    color: #f5f5f6;
+    font-size: 18px;
+  }
+
+  .panel {
+    margin-top: 22px;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .panel-heading {
+    padding: 22px;
+    border-bottom: 1px solid #23272d;
+  }
+
+  .panel-heading h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .actions {
+    padding: 22px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .actions button {
+    padding: 10px 15px;
+    border: 1px solid #30353d;
+    border-radius: 8px;
+    color: #d8dce1;
+    background: #171a1f;
+    cursor: pointer;
+  }
+
+  .actions button:hover {
+    background: #20242a;
+  }
+
+  .actions button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  .message {
+    margin: 0;
+    padding: 0 22px 22px;
+    color: #8d96a2;
+    font-size: 12px;
+  }
+
+  .error {
+    margin-top: 20px;
+    padding: 16px;
+    border: 1px solid #66383a;
+    border-radius: 9px;
+    color: #e79292;
+    background: #201314;
+  }
+
+  /* Metrics */
+
+  .metrics-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .range-selector {
+    display: flex;
+    gap: 5px;
+  }
+
+  .range-selector button {
+    padding: 7px 10px;
+    border: 1px solid #2c3138;
+    border-radius: 7px;
+    color: #858e9b;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+  }
+
+  .range-selector button:hover,
+  .range-selector button.active {
+    color: #f3f4f5;
+    background: #20242a;
+  }
+
+  .charts-grid {
+    padding: 22px;
+    display: grid;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .chart-card {
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid #22272e;
+    border-radius: 11px;
+    background: #0e1014;
+  }
+
+  .chart-card.wide {
+    grid-column: 1 / -1;
+  }
+
+  .chart-title {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+  }
+
+  .chart-title span {
+    color: #7c8592;
+    font-size: 11px;
+  }
+
+  .chart-title strong {
+    color: #f0f2f4;
+    font-size: 13px;
+  }
+
+  .chart {
+    width: 100%;
+    height: 170px;
+  }
+
+  .chart svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .grid-line {
+    stroke: #20252b;
+    stroke-width: 1;
+  }
+
+  .chart-line {
+    fill: none;
+    vector-effect:
+      non-scaling-stroke;
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .chart-line.primary {
+    stroke: #71a7ff;
+  }
+
+  .chart-line.secondary {
+    stroke: #59c98a;
+  }
+
+  .chart-empty {
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: #666f7c;
+    font-size: 11px;
+  }
+
+  .legend {
+    margin-top: 12px;
+    display: flex;
+    gap: 18px;
+    color: #7d8692;
+    font-size: 10px;
+  }
+
+  .legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .rx-dot {
+    background: #71a7ff;
+  }
+
+  .tx-dot {
+    background: #59c98a;
+  }
+
+  /* Terminal */
+
+  .terminal-form {
+    padding: 20px 22px 0;
+  }
+
+  .terminal-input-row {
+    display: flex;
+    align-items: center;
+    border: 1px solid #292f37;
+    border-radius: 9px;
+    background: #090b0e;
+    overflow: hidden;
+  }
+
+  .prompt {
+    padding-left: 14px;
+    color: #59c98a;
+    font-family:
+      "SFMono-Regular",
+      Consolas,
+      monospace;
+  }
+
+  .terminal-input-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 10px;
+    border: 0;
+    outline: 0;
+    color: #e6e9ed;
+    background: transparent;
+    font-family:
+      "SFMono-Regular",
+      Consolas,
+      monospace;
+    font-size: 12px;
+  }
+
+  .terminal-input-row button {
+    align-self: stretch;
+    padding: 0 18px;
+    border: 0;
+    border-left: 1px solid #292f37;
+    color: #e6e9ed;
+    background: #171b20;
+    cursor: pointer;
+  }
+
+  .terminal-input-row button:hover {
+    background: #20242a;
+  }
+
+  .terminal-input-row button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  .terminal-output {
+    min-height: 190px;
+    max-height: 420px;
+    margin: 14px 22px 0;
+    padding: 16px;
+    overflow: auto;
+    border: 1px solid #22272e;
+    border-radius: 9px;
+    color: #d8dde3;
+    background: #080a0d;
+    font-family:
+      "SFMono-Regular",
+      Consolas,
+      monospace;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .terminal-output pre {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: inherit;
+  }
+
+  .terminal-stderr {
+    margin-top: 14px !important;
+    color: #e88d8d;
+  }
+
+  .terminal-empty {
+    color: #5f6874;
+  }
+
+  .terminal-footer {
+    padding: 10px 22px 20px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    color: #68717e;
+    font-size: 10px;
+  }
+
+  @media (max-width: 800px) {
+    .grid {
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 700px) {
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .chart-card.wide {
+      grid-column: auto;
+    }
+
+    .metrics-heading {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .topbar {
+      flex-direction: column;
+    }
+
+    .terminal-footer {
+      flex-direction: column;
+      gap: 6px;
+    }
+  }
+</style>

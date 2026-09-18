@@ -1,0 +1,1223 @@
+---
+const pageTitle = "Hobby Server Monitor";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width"
+    />
+    <meta
+      name="description"
+      content="Secure LXD container monitoring dashboard"
+    />
+    <title>{pageTitle}</title>
+  </head>
+
+  <body>
+    <div id="loading" class="center-screen">
+      <div class="loader"></div>
+      <p>Loading server...</p>
+    </div>
+
+    <main id="login" class="login hidden">
+      <section class="login-card">
+        <p class="eyebrow">
+          On-premise infrastructure
+        </p>
+
+        <h1>
+          Hobby Server
+          <span>Monitor</span>
+        </h1>
+
+        <p class="muted">
+          Securely monitor and control
+          your LXD containers.
+        </p>
+
+        <a
+          class="primary-button"
+          href="/api/auth/google/login"
+        >
+          Continue with Google
+        </a>
+      </section>
+    </main>
+
+    <div
+      id="app"
+      class="app hidden"
+    >
+      <aside class="sidebar">
+        <div>
+          <div class="brand">
+            <div class="brand-mark">H</div>
+
+            <div>
+              <strong>Hobby Server</strong>
+              <span>Monitor</span>
+            </div>
+          </div>
+
+          <nav class="nav">
+            <button
+              class="nav-item active"
+              data-section="overview"
+            >
+              Overview
+            </button>
+
+            <button
+              class="nav-item"
+              data-section="containers"
+            >
+              Containers
+            </button>
+
+            <button
+              id="users-nav"
+              class="nav-item hidden"
+              data-section="users"
+            >
+              Users
+            </button>
+          </nav>
+        </div>
+
+        <div class="sidebar-user">
+          <div>
+            <strong id="sidebar-name">
+              —
+            </strong>
+
+            <span id="sidebar-role">
+              —
+            </span>
+          </div>
+
+          <button
+            id="logout-button"
+            class="logout-button"
+            type="button"
+          >
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      <div class="content">
+        <header class="header">
+          <div>
+            <p class="eyebrow">
+              LXD infrastructure
+            </p>
+
+            <h2 id="page-heading">
+              Overview
+            </h2>
+          </div>
+
+          <div
+            id="api-status"
+            class="status-badge"
+          >
+            <span></span>
+            Connected
+          </div>
+        </header>
+
+        <section
+          id="overview-section"
+          class="section"
+        >
+          <div class="stats">
+            <article class="stat-card">
+              <span>Total containers</span>
+              <strong id="total-count">—</strong>
+            </article>
+
+            <article class="stat-card">
+              <span>Running</span>
+              <strong id="running-count">—</strong>
+            </article>
+
+            <article class="stat-card">
+              <span>Stopped</span>
+              <strong id="stopped-count">—</strong>
+            </article>
+
+            <article
+              id="users-stat"
+              class="stat-card hidden"
+            >
+              <span>Users</span>
+              <strong id="users-count">—</strong>
+            </article>
+          </div>
+
+          <div class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">
+                  Infrastructure
+                </p>
+
+                <h3>Recent containers</h3>
+              </div>
+            </div>
+
+            <div
+              id="overview-containers"
+              class="container-list"
+            ></div>
+          </div>
+        </section>
+
+        <section
+          id="containers-section"
+          class="section hidden"
+        >
+          <div class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">
+                  LXD
+                </p>
+
+                <h3>
+                  Containers
+                </h3>
+              </div>
+
+              <button
+                id="create-container-button"
+                class="primary-button small hidden"
+                type="button"
+              >
+                New container
+              </button>
+            </div>
+
+            <div
+              id="containers-list"
+              class="container-list"
+            ></div>
+          </div>
+        </section>
+
+        <section
+          id="users-section"
+          class="section hidden"
+        >
+          <div class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">
+                  Access control
+                </p>
+
+                <h3>
+                  Users
+                </h3>
+              </div>
+
+              <button
+                id="invite-user-button"
+                class="primary-button small"
+                type="button"
+              >
+                Invite user
+              </button>
+            </div>
+
+            <div
+              id="users-list"
+              class="users-list"
+            ></div>
+          </div>
+        </section>
+
+        <section
+          id="error-section"
+          class="error-panel hidden"
+        >
+          <strong>
+            Unable to load dashboard
+          </strong>
+
+          <p id="error-message"></p>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      import {
+        getContainers,
+        getCurrentUser,
+        getUsers,
+        logout,
+        type ContainerSummary,
+        type UserRecord,
+      } from "../lib/api";
+
+      const loading =
+        document.querySelector<HTMLElement>(
+          "#loading",
+        );
+
+      const login =
+        document.querySelector<HTMLElement>(
+          "#login",
+        );
+
+      const app =
+        document.querySelector<HTMLElement>(
+          "#app",
+        );
+
+      const usersNav =
+        document.querySelector<HTMLElement>(
+          "#users-nav",
+        );
+
+      const usersStat =
+        document.querySelector<HTMLElement>(
+          "#users-stat",
+        );
+
+      const createButton =
+        document.querySelector<HTMLElement>(
+          "#create-container-button",
+        );
+
+      const sidebarName =
+        document.querySelector<HTMLElement>(
+          "#sidebar-name",
+        );
+
+      const sidebarRole =
+        document.querySelector<HTMLElement>(
+          "#sidebar-role",
+        );
+
+      const totalCount =
+        document.querySelector<HTMLElement>(
+          "#total-count",
+        );
+
+      const runningCount =
+        document.querySelector<HTMLElement>(
+          "#running-count",
+        );
+
+      const stoppedCount =
+        document.querySelector<HTMLElement>(
+          "#stopped-count",
+        );
+
+      const usersCount =
+        document.querySelector<HTMLElement>(
+          "#users-count",
+        );
+
+      const containersList =
+        document.querySelector<HTMLElement>(
+          "#containers-list",
+        );
+
+      const overviewContainers =
+        document.querySelector<HTMLElement>(
+          "#overview-containers",
+        );
+
+      const usersList =
+        document.querySelector<HTMLElement>(
+          "#users-list",
+        );
+
+      const logoutButton =
+        document.querySelector<HTMLButtonElement>(
+          "#logout-button",
+        );
+
+      const errorSection =
+        document.querySelector<HTMLElement>(
+          "#error-section",
+        );
+
+      const errorMessage =
+        document.querySelector<HTMLElement>(
+          "#error-message",
+        );
+
+
+      function escapeText(value: unknown) {
+        return String(
+          value ?? "",
+        )
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+
+      function formatBytes(
+        value?: number | null,
+      ) {
+        if (
+          value === undefined
+          || value === null
+        ) {
+          return "—";
+        }
+
+        const units = [
+          "B",
+          "KiB",
+          "MiB",
+          "GiB",
+          "TiB",
+        ];
+
+        let size = value;
+        let unit = 0;
+
+        while (
+          size >= 1024
+          && unit < units.length - 1
+        ) {
+          size /= 1024;
+          unit += 1;
+        }
+
+        return `${size.toFixed(
+          unit === 0 ? 0 : 1,
+        )} ${units[unit]}`;
+      }
+
+
+      function statusClass(
+        status: string,
+      ) {
+        return status.toLowerCase()
+          === "running"
+          ? "running"
+          : "stopped";
+      }
+
+
+      function containerMarkup(
+        container: ContainerSummary,
+      ) {
+        const image =
+          container.image?.description
+          ?? container.image?.os
+          ?? "Unknown image";
+
+        return `
+          <a
+            class="container-row"
+            href="/containers/${container.container_id}"
+          >
+            <div class="container-main">
+              <div
+                class="status-dot ${statusClass(
+                  container.status,
+                )}"
+              ></div>
+
+              <div>
+                <strong>
+                  ${escapeText(
+                    container.name,
+                  )}
+                </strong>
+
+                <span>
+                  ${escapeText(image)}
+                </span>
+              </div>
+            </div>
+
+            <div class="container-meta">
+              <span>
+                ${escapeText(
+                  container.ipv4 ?? "No IPv4",
+                )}
+              </span>
+
+              <span>
+                RAM ${escapeText(
+                  formatBytes(
+                    container.memory
+                      ?.used_bytes,
+                  ),
+                )}
+              </span>
+
+              <span class="state">
+                ${escapeText(
+                  container.status,
+                )}
+              </span>
+            </div>
+          </a>
+        `;
+      }
+
+
+      function userMarkup(
+        user: UserRecord,
+      ) {
+        return `
+          <article class="user-row">
+            <div>
+              <strong>
+                ${escapeText(
+                  user.name
+                  || user.email,
+                )}
+              </strong>
+
+              <span>
+                ${escapeText(
+                  user.email,
+                )}
+              </span>
+            </div>
+
+            <div class="user-meta">
+              <span>
+                ${escapeText(
+                  user.role
+                  === "admin"
+                    ? "Administrator"
+                    : "Container User",
+                )}
+              </span>
+
+              <span class="${
+                user.active
+                  ? "active-user"
+                  : "revoked-user"
+              }">
+                ${
+                  user.active
+                    ? "Active"
+                    : "Revoked"
+                }
+              </span>
+            </div>
+          </article>
+        `;
+      }
+
+
+      function showSection(
+        sectionName: string,
+      ) {
+        document
+          .querySelectorAll<HTMLElement>(
+            ".section",
+          )
+          .forEach((section) => {
+            section.classList.add(
+              "hidden",
+            );
+          });
+
+        document
+          .querySelector<HTMLElement>(
+            `#${sectionName}-section`,
+          )
+          ?.classList.remove(
+            "hidden",
+          );
+
+        document
+          .querySelectorAll<HTMLElement>(
+            ".nav-item",
+          )
+          .forEach((item) => {
+            item.classList.toggle(
+              "active",
+              item.dataset.section
+                === sectionName,
+            );
+          });
+
+        const heading =
+          document.querySelector<HTMLElement>(
+            "#page-heading",
+          );
+
+        if (heading) {
+          heading.textContent =
+            sectionName.charAt(0)
+              .toUpperCase()
+            + sectionName.slice(1);
+        }
+      }
+
+
+      document
+        .querySelectorAll<HTMLElement>(
+          ".nav-item",
+        )
+        .forEach((item) => {
+          item.addEventListener(
+            "click",
+            () => {
+              const section =
+                item.dataset.section;
+
+              if (section) {
+                showSection(section);
+              }
+            },
+          );
+        });
+
+
+      async function loadDashboard() {
+        try {
+          const auth =
+            await getCurrentUser();
+
+          loading?.classList.add(
+            "hidden",
+          );
+
+          if (!auth) {
+            login?.classList.remove(
+              "hidden",
+            );
+            return;
+          }
+
+          app?.classList.remove(
+            "hidden",
+          );
+
+          if (sidebarName) {
+            sidebarName.textContent =
+              auth.user.name
+              || auth.user.email;
+          }
+
+          if (sidebarRole) {
+            sidebarRole.textContent =
+              auth.user.role
+                === "admin"
+                ? "Administrator"
+                : "Container User";
+          }
+
+          const containerData =
+            await getContainers();
+
+          const containers =
+            containerData.containers;
+
+          const running =
+            containers.filter(
+              (container) =>
+                container.status
+                  .toLowerCase()
+                === "running",
+            ).length;
+
+          const stopped =
+            containers.length
+            - running;
+
+          if (totalCount) {
+            totalCount.textContent =
+              String(containers.length);
+          }
+
+          if (runningCount) {
+            runningCount.textContent =
+              String(running);
+          }
+
+          if (stoppedCount) {
+            stoppedCount.textContent =
+              String(stopped);
+          }
+
+          const containerHtml =
+            containers.length
+              ? containers
+                  .map(containerMarkup)
+                  .join("")
+              : `
+                  <div class="empty-state">
+                    No containers available.
+                  </div>
+                `;
+
+          if (containersList) {
+            containersList.innerHTML =
+              containerHtml;
+          }
+
+          if (overviewContainers) {
+            overviewContainers.innerHTML =
+              containers
+                .slice(0, 5)
+                .map(containerMarkup)
+                .join("")
+              || `
+                <div class="empty-state">
+                  No containers available.
+                </div>
+              `;
+          }
+
+          if (
+            auth.user.role === "admin"
+          ) {
+            usersNav?.classList.remove(
+              "hidden",
+            );
+
+            usersStat?.classList.remove(
+              "hidden",
+            );
+
+            createButton?.classList.remove(
+              "hidden",
+            );
+
+            const userData =
+              await getUsers();
+
+            if (usersCount) {
+              usersCount.textContent =
+                String(userData.count);
+            }
+
+            if (usersList) {
+              usersList.innerHTML =
+                userData.users.length
+                  ? userData.users
+                      .map(userMarkup)
+                      .join("")
+                  : `
+                    <div class="empty-state">
+                      No users found.
+                    </div>
+                  `;
+            }
+          }
+        } catch (cause) {
+          loading?.classList.add(
+            "hidden",
+          );
+
+          errorSection?.classList.remove(
+            "hidden",
+          );
+
+          if (errorMessage) {
+            errorMessage.textContent =
+              cause instanceof Error
+                ? cause.message
+                : "Unknown error";
+          }
+        }
+      }
+
+
+      logoutButton?.addEventListener(
+        "click",
+        async () => {
+          logoutButton.disabled = true;
+
+          try {
+            await logout();
+            window.location.reload();
+
+          } catch (cause) {
+            alert(
+              cause instanceof Error
+                ? cause.message
+                : "Logout failed",
+            );
+
+            logoutButton.disabled =
+              false;
+          }
+        },
+      );
+
+
+      loadDashboard();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    background: #0b0d10;
+    color: #f4f5f7;
+  }
+
+  button,
+  a {
+    font: inherit;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .center-screen,
+  .login {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .center-screen {
+    color: #8f96a3;
+  }
+
+  .loader {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #30343b;
+    border-top-color: #f2f3f4;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .login-card {
+    width: min(100%, 520px);
+    padding: 48px;
+    border: 1px solid #262a31;
+    border-radius: 22px;
+    background: #111318;
+  }
+
+  .login-card h1 {
+    margin: 0;
+    font-size: 52px;
+    letter-spacing: -0.055em;
+    line-height: 0.98;
+  }
+
+  .login-card h1 span {
+    color: #838b98;
+  }
+
+  .eyebrow {
+    margin: 0 0 10px;
+    color: #717987;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .muted {
+    color: #8e95a1;
+    line-height: 1.7;
+  }
+
+  .primary-button {
+    border: 0;
+    border-radius: 9px;
+    padding: 12px 17px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #101216;
+    background: #f2f3f4;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .primary-button.small {
+    padding: 10px 14px;
+  }
+
+  .app {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns:
+      235px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 26px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-right: 1px solid #20242a;
+    background: #0d0f12;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 42px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #121417;
+    background: #f3f3f3;
+    font-weight: 800;
+  }
+
+  .brand strong,
+  .brand span {
+    display: block;
+  }
+
+  .brand strong {
+    font-size: 13px;
+  }
+
+  .brand span {
+    margin-top: 2px;
+    color: #6e7580;
+    font-size: 11px;
+  }
+
+  .nav {
+    display: grid;
+    gap: 4px;
+  }
+
+  .nav-item {
+    width: 100%;
+    padding: 11px 12px;
+    border: 0;
+    border-radius: 8px;
+    color: #858c98;
+    background: transparent;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .nav-item:hover,
+  .nav-item.active {
+    color: #f1f2f4;
+    background: #181b20;
+  }
+
+  .sidebar-user {
+    padding-top: 18px;
+    border-top: 1px solid #20242a;
+  }
+
+  .sidebar-user strong,
+  .sidebar-user span {
+    display: block;
+  }
+
+  .sidebar-user strong {
+    font-size: 12px;
+  }
+
+  .sidebar-user span {
+    margin-top: 3px;
+    color: #707784;
+    font-size: 11px;
+  }
+
+  .logout-button {
+    margin-top: 14px;
+    padding: 0;
+    border: 0;
+    color: #858c98;
+    background: transparent;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .content {
+    min-width: 0;
+    padding: 38px clamp(
+      24px,
+      5vw,
+      70px
+    );
+  }
+
+  .header {
+    margin-bottom: 34px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .header h2 {
+    margin: 0;
+    font-size: 30px;
+    letter-spacing: -0.035em;
+  }
+
+  .status-badge {
+    padding: 8px 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid #252a31;
+    border-radius: 999px;
+    color: #8f96a2;
+    font-size: 11px;
+  }
+
+  .status-badge span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #55ca86;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .stat-card,
+  .panel {
+    border: 1px solid #22262c;
+    background: #111318;
+  }
+
+  .stat-card {
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .stat-card span {
+    display: block;
+    color: #717986;
+    font-size: 11px;
+  }
+
+  .stat-card strong {
+    margin-top: 9px;
+    display: block;
+    font-size: 30px;
+    letter-spacing: -0.04em;
+  }
+
+  .panel {
+    margin-top: 22px;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .panel-heading {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    border-bottom: 1px solid #22262c;
+  }
+
+  .panel-heading h3 {
+    margin: 0;
+    font-size: 17px;
+  }
+
+  .container-row,
+  .user-row {
+    padding: 17px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid #1d2025;
+  }
+
+  .container-row {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .container-row:hover {
+    background: #16191e;
+  }
+
+  .container-row:last-child,
+  .user-row:last-child {
+    border-bottom: 0;
+  }
+
+  .container-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .container-main strong,
+  .container-main span,
+  .user-row strong,
+  .user-row span {
+    display: block;
+  }
+
+  .container-main strong,
+  .user-row strong {
+    font-size: 13px;
+  }
+
+  .container-main span,
+  .user-row span {
+    margin-top: 4px;
+    color: #737b87;
+    font-size: 11px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #626975;
+  }
+
+  .status-dot.running {
+    background: #57c989;
+  }
+
+  .container-meta,
+  .user-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    color: #747c88;
+    font-size: 11px;
+  }
+
+  .container-meta .state {
+    min-width: 64px;
+    color: #b4bac3;
+    text-align: right;
+  }
+
+  .active-user {
+    color: #58c98a !important;
+  }
+
+  .revoked-user {
+    color: #dd7373 !important;
+  }
+
+  .empty-state {
+    padding: 34px 22px;
+    color: #6f7682;
+    font-size: 12px;
+  }
+
+  .error-panel {
+    margin-top: 24px;
+    padding: 18px;
+    border: 1px solid #5d3030;
+    border-radius: 10px;
+    color: #df8585;
+    background: #1d1213;
+  }
+
+  @media (max-width: 900px) {
+    .app {
+      grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+      position: static;
+      width: 100%;
+      height: auto;
+      padding: 18px;
+    }
+
+    .sidebar-user {
+      display: none;
+    }
+
+    .brand {
+      margin-bottom: 18px;
+    }
+
+    .nav {
+      grid-template-columns:
+        repeat(3, 1fr);
+    }
+
+    .stats {
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 620px) {
+    .content {
+      padding: 24px 16px;
+    }
+
+    .stats {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .container-row,
+    .user-row {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .container-meta,
+    .user-meta {
+      width: 100%;
+      flex-wrap: wrap;
+    }
+  }
+</style>
