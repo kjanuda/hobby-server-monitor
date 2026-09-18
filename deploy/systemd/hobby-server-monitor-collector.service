@@ -1,3 +1,5 @@
+# Template rendered by deploy/install-systemd.sh
+
 [Unit]
 Description=Hobby Server Monitor Metrics Collector
 After=snap.lxd.daemon.service network.target
@@ -5,12 +7,14 @@ Wants=snap.lxd.daemon.service
 
 [Service]
 Type=simple
-User=januda
+User=__HSM_USER__
 SupplementaryGroups=lxd
-WorkingDirectory=/home/januda/projects/hobby-server-monitor/backend
-ExecStart=/home/januda/projects/hobby-server-monitor/backend/.venv/bin/python /home/januda/projects/hobby-server-monitor/backend/collector.py
+WorkingDirectory=__HSM_ROOT__/backend
+EnvironmentFile=__HSM_ROOT__/.env
+ExecStart=__HSM_ROOT__/backend/.venv/bin/python __HSM_ROOT__/backend/collector.py
 Restart=always
 RestartSec=5
+
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
