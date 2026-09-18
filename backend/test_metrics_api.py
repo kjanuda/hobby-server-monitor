@@ -1,128 +1,149 @@
 from falcon import testing
 
 from app import app
-from config import SESSION_COOKIE_NAME
 from services.container_access_service import (
     ContainerAccessService,
 )
-from services.session_service import (
-    SessionService,
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
+    get_registered_container,
 )
 
 
 client = testing.TestClient(app)
-sessions = SessionService()
 access = ContainerAccessService()
 
-USER_ID = 1
-CONTAINER_ID = 1
+user = get_active_user("container_user")
+container = get_registered_container()
+
+assert user is not None
+assert container is not None
+
+USER_ID = user["id"]
+CONTAINER_ID = container["id"]
+
+token = None
 
 
-print("1. Assign container")
+try:
+    print("1. Assign container")
 
-access.assign(
-    USER_ID,
-    CONTAINER_ID,
-    actor_email="metrics-test@example.com",
-)
-
-token = sessions.create_session(USER_ID)
-
-headers = {
-    "Cookie": (
-        f"{SESSION_COOKIE_NAME}={token}"
+    access.assign(
+        USER_ID,
+        CONTAINER_ID,
+        actor_email="metrics-test@example.com",
     )
-}
+
+    token, headers = (
+        create_authenticated_headers(
+            client,
+            USER_ID,
+        )
+    )
 
 
-print("\n2. Query historical metrics")
+    print("\n2. Query historical metrics")
 
-response = client.simulate_get(
-    f"/api/containers/{CONTAINER_ID}/metrics",
-    headers=headers,
-    params={
-        "hours": 24,
-        "max_points": 360,
-    },
-)
+    response = client.simulate_get(
+        f"/api/containers/{CONTAINER_ID}/metrics",
+        headers=headers,
+        params={
+            "hours": 24,
+            "max_points": 360,
+        },
+    )
 
-print("HTTP:", response.status_code)
-print(
-    "Samples:",
-    response.json.get("sample_count")
-)
-print(
-    "Returned:",
-    response.json.get("returned_count")
-)
+    print("HTTP:", response.status_code)
 
-assert response.status_code == 200
-assert response.json["sample_count"] >= 1
-assert response.json["returned_count"] >= 1
-assert len(response.json["points"]) >= 1
+    print(
+        "Samples:",
+        response.json.get(
+            "sample_count"
+        ),
+    )
 
-point = response.json["points"][-1]
+    print(
+        "Returned:",
+        response.json.get(
+            "returned_count"
+        ),
+    )
 
-assert "cpu_percent" in point
-assert "memory_used_bytes" in point
-assert "rx_bytes_per_second" in point
+    assert response.status_code == 200
+    assert response.json["sample_count"] >= 1
+    assert response.json["returned_count"] >= 1
+    assert len(response.json["points"]) >= 1
 
-print(
-    "PASS: assigned user can "
-    "read historical metrics"
-)
+    point = response.json["points"][-1]
 
+    assert "cpu_percent" in point
+    assert "memory_used_bytes" in point
+    assert "rx_bytes_per_second" in point
 
-print("\n3. Revoke access")
-
-access.revoke(
-    USER_ID,
-    CONTAINER_ID,
-    actor_email="metrics-test@example.com",
-)
-
-response = client.simulate_get(
-    f"/api/containers/{CONTAINER_ID}/metrics",
-    headers=headers,
-)
-
-assert response.status_code == 403
-
-print(
-    "PASS: unassigned user receives 403"
-)
+    print(
+        "PASS: assigned user can "
+        "read historical metrics"
+    )
 
 
-print("\n4. Invalid history range")
+    print("\n3. Revoke access")
 
-access.assign(
-    USER_ID,
-    CONTAINER_ID,
-    actor_email="metrics-test@example.com",
-)
+    access.revoke(
+        USER_ID,
+        CONTAINER_ID,
+        actor_email="metrics-test@example.com",
+    )
 
-response = client.simulate_get(
-    f"/api/containers/{CONTAINER_ID}/metrics",
-    headers=headers,
-    params={
-        "hours": 999,
-    },
-)
+    response = client.simulate_get(
+        f"/api/containers/{CONTAINER_ID}/metrics",
+        headers=headers,
+    )
 
-assert response.status_code == 400
+    assert response.status_code == 403
 
-print(
-    "PASS: invalid history range rejected"
-)
+    print(
+        "PASS: unassigned user receives 403"
+    )
 
 
-access.revoke(
-    USER_ID,
-    CONTAINER_ID,
-    actor_email="metrics-test@example.com",
-)
+    print("\n4. Invalid history range")
 
-sessions.delete_session(token)
+    access.assign(
+        USER_ID,
+        CONTAINER_ID,
+        actor_email="metrics-test@example.com",
+    )
+
+    response = client.simulate_get(
+        f"/api/containers/{CONTAINER_ID}/metrics",
+        headers=headers,
+        params={
+            "hours": 999,
+        },
+    )
+
+    assert response.status_code == 400
+
+    print(
+        "PASS: invalid history range rejected"
+    )
+
+
+finally:
+    try:
+        access.revoke(
+            USER_ID,
+            CONTAINER_ID,
+            actor_email="metrics-test-cleanup@example.com",
+        )
+    except Exception:
+        pass
+
+    if token is not None:
+        delete_test_session(token)
+
 
 print(
     "\nPASS: historical metrics API "

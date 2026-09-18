@@ -3,33 +3,26 @@ import uuid
 from falcon import testing
 
 from app import app
-from config import (
-    BOOTSTRAP_ADMIN_EMAIL,
-    SESSION_COOKIE_NAME,
+
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
 )
-from services.session_service import SessionService
-from services.user_service import UserService
 
 
 client = testing.TestClient(app)
-sessions = SessionService()
-users = UserService()
 
-admin = users.get_user_by_email(
-    BOOTSTRAP_ADMIN_EMAIL
-)
+admin = get_active_user("admin")
+owner = get_active_user("container_user")
 
 assert admin is not None
+assert owner is not None
 
-token = sessions.create_session(
-    admin["id"]
+token, headers = create_authenticated_headers(
+    client,
+    admin["id"],
 )
-
-headers = {
-    "Cookie": (
-        f"{SESSION_COOKIE_NAME}={token}"
-    )
-}
 
 name = (
     "create-test-"
@@ -52,7 +45,7 @@ response = client.simulate_post(
         "disk": "2GiB",
         "storage_pool": "default",
         "network": "lxdbr0",
-        "owner_user_id": 1,
+        "owner_user_id": owner["id"],
         "ephemeral": False,
         "autostart": True,
         "description": (
@@ -79,4 +72,4 @@ print(
     f"id={container_id}"
 )
 
-sessions.delete_session(token)
+delete_test_session(token)

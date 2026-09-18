@@ -45,6 +45,7 @@ class QuotaService:
                         record["lxd_name"]
                     )
                 )
+
             except Exception:
                 continue
 
@@ -94,6 +95,119 @@ class QuotaService:
             "disk_bytes": disk_used,
         }
 
+    def get_host_allocations(
+        self,
+        exclude_container_id=None,
+    ):
+        memory_allocated = 0
+        cpu_allocated = 0
+        disk_by_pool = {}
+
+        records = (
+            self.container_repository.list_all()
+        )
+
+        for record in records:
+            if (
+                exclude_container_id is not None
+                and record["id"]
+                == exclude_container_id
+            ):
+                continue
+
+            try:
+                container = (
+                    self.lxd_service.client
+                    .containers.get(
+                        record["lxd_name"]
+                    )
+                )
+
+            except Exception:
+                continue
+
+            config = container.expanded_config or {}
+            devices = (
+                container.expanded_devices or {}
+            )
+
+            memory_limit = config.get(
+                "limits.memory"
+            )
+
+            if memory_limit:
+                try:
+                    memory_allocated += (
+                        parse_size_to_bytes(
+                            memory_limit
+                        )
+                    )
+                except ValueError:
+                    pass
+
+            cpu_limit = config.get(
+                "limits.cpu"
+            )
+
+            if cpu_limit:
+                try:
+                    cpu_allocated += int(
+                        cpu_limit
+                    )
+                except (
+                    ValueError,
+                    TypeError,
+                ):
+                    # The application creates containers
+                    # with integer CPU limits. External
+                    # pinning expressions are not included.
+                    pass
+
+            root = devices.get(
+                "root",
+                {},
+            )
+
+            disk_limit = root.get(
+                "size"
+            )
+
+            pool_name = root.get(
+                "pool"
+            )
+
+            if (
+                disk_limit
+                and pool_name
+            ):
+                try:
+                    disk_bytes = (
+                        parse_size_to_bytes(
+                            disk_limit
+                        )
+                    )
+
+                except ValueError:
+                    continue
+
+                disk_by_pool[
+                    pool_name
+                ] = (
+                    disk_by_pool.get(
+                        pool_name,
+                        0,
+                    )
+                    + disk_bytes
+                )
+
+        return {
+            "ram_bytes": memory_allocated,
+            "cpu_cores": cpu_allocated,
+            "disk_bytes_by_pool": (
+                disk_by_pool
+            ),
+        }
+
     def validate_creation(
         self,
         owner_user_id,
@@ -119,16 +233,49 @@ class QuotaService:
 
         host = self.lxd_service.get_host_resources()
 
-        host_cpus = host["cpu"]["logical_cpus"]
-        host_available_memory = (
-            host["memory"]["available_bytes"]
+        host_cpus = host[
+            "cpu"
+        ]["logical_cpus"]
+
+        host_total_memory = host[
+            "memory"
+        ]["total_bytes"]
+
+        host_available_memory = host[
+            "memory"
+        ]["available_bytes"]
+
+        allocations = (
+            self.get_host_allocations()
         )
 
-        if cpu_cores > host_cpus:
+        requested_cpu_total = (
+            allocations["cpu_cores"]
+            + cpu_cores
+        )
+
+        requested_memory_total = (
+            allocations["ram_bytes"]
+            + memory_bytes
+        )
+
+        if requested_cpu_total > host_cpus:
             raise QuotaValidationError(
-                "Requested CPU exceeds host capacity."
+                "Requested CPU would exceed "
+                "total host CPU allocation."
             )
 
+        if (
+            requested_memory_total
+            > host_total_memory
+        ):
+            raise QuotaValidationError(
+                "Requested memory would exceed "
+                "total host RAM allocation."
+            )
+
+        # Also protect against immediate physical
+        # memory pressure on the current host.
         if memory_bytes > host_available_memory:
             raise QuotaValidationError(
                 "Requested memory exceeds "
@@ -151,6 +298,29 @@ class QuotaService:
         if not pool:
             raise QuotaValidationError(
                 "Storage pool does not exist."
+            )
+
+        pool_allocated = (
+            allocations[
+                "disk_bytes_by_pool"
+            ].get(
+                storage_pool,
+                0,
+            )
+        )
+
+        requested_disk_total = (
+            pool_allocated
+            + disk_bytes
+        )
+
+        if (
+            requested_disk_total
+            > pool["space"]["total_bytes"]
+        ):
+            raise QuotaValidationError(
+                "Requested disk would exceed "
+                "total storage pool allocation."
             )
 
         if (
@@ -317,9 +487,46 @@ class QuotaService:
 
         host = self.lxd_service.get_host_resources()
 
-        if cpu_cores > host["cpu"]["logical_cpus"]:
+        allocations = (
+            self.get_host_allocations(
+                exclude_container_id=container_id
+            )
+        )
+
+        host_cpu_total = host[
+            "cpu"
+        ]["logical_cpus"]
+
+        host_memory_total = host[
+            "memory"
+        ]["total_bytes"]
+
+        new_host_cpu_total = (
+            allocations["cpu_cores"]
+            + cpu_cores
+        )
+
+        new_host_memory_total = (
+            allocations["ram_bytes"]
+            + memory_bytes
+        )
+
+        if (
+            new_host_cpu_total
+            > host_cpu_total
+        ):
             raise QuotaValidationError(
-                "Requested CPU exceeds host capacity."
+                "Updated CPU would exceed "
+                "total host CPU allocation."
+            )
+
+        if (
+            new_host_memory_total
+            > host_memory_total
+        ):
+            raise QuotaValidationError(
+                "Updated memory would exceed "
+                "total host RAM allocation."
             )
 
         memory_increase = max(
@@ -350,6 +557,29 @@ class QuotaService:
         if not pool:
             raise QuotaValidationError(
                 "Storage pool does not exist."
+            )
+
+        pool_allocated = (
+            allocations[
+                "disk_bytes_by_pool"
+            ].get(
+                storage_pool,
+                0,
+            )
+        )
+
+        new_pool_allocation = (
+            pool_allocated
+            + disk_bytes
+        )
+
+        if (
+            new_pool_allocation
+            > pool["space"]["total_bytes"]
+        ):
+            raise QuotaValidationError(
+                "Updated disk would exceed "
+                "total storage pool allocation."
             )
 
         disk_increase = max(

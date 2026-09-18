@@ -1,12 +1,20 @@
 from falcon import testing
 
 from app import app
-from config import SESSION_COOKIE_NAME
-from services.session_service import SessionService
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
+)
 
 
 client = testing.TestClient(app)
-sessions = SessionService()
+
+user = get_active_user("container_user")
+admin = get_active_user("admin")
+
+assert user is not None
+assert admin is not None
 
 
 print("1. Public health endpoint")
@@ -35,50 +43,54 @@ print(
 
 print("\n3. Container user attempting admin endpoint")
 
-user_token = sessions.create_session(
-    user_id=1
+user_token, user_headers = (
+    create_authenticated_headers(
+        client,
+        user["id"],
+    )
 )
 
-response = client.simulate_get(
-    "/api/containers",
-    headers={
-        "Cookie": (
-            f"{SESSION_COOKIE_NAME}={user_token}"
-        )
-    },
-)
+try:
+    response = client.simulate_get(
+        "/api/users",
+        headers=user_headers,
+    )
 
-assert response.status_code == 403
+    assert response.status_code == 403
+
+finally:
+    delete_test_session(user_token)
 
 print(
-    "PASS: container user receives 403"
+    "PASS: container user receives 403 "
+    "for admin-only endpoint"
 )
 
-sessions.delete_session(user_token)
 
+print("\n4. Admin accessing admin endpoint")
 
-print("\n4. Admin accessing protected endpoint")
-
-admin_token = sessions.create_session(
-    user_id=2
+admin_token, admin_headers = (
+    create_authenticated_headers(
+        client,
+        admin["id"],
+    )
 )
 
-response = client.simulate_get(
-    "/api/containers",
-    headers={
-        "Cookie": (
-            f"{SESSION_COOKIE_NAME}={admin_token}"
-        )
-    },
-)
+try:
+    response = client.simulate_get(
+        "/api/users",
+        headers=admin_headers,
+    )
 
-assert response.status_code == 200
+    assert response.status_code == 200
+
+finally:
+    delete_test_session(admin_token)
 
 print(
-    "PASS: admin can access protected endpoint"
+    "PASS: admin can access "
+    "admin-only endpoint"
 )
-
-sessions.delete_session(admin_token)
 
 
 print(

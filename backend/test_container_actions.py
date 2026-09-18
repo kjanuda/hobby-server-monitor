@@ -1,23 +1,22 @@
 from falcon import testing
 
 from app import app
-from config import (
-    BOOTSTRAP_ADMIN_EMAIL,
-    SESSION_COOKIE_NAME,
+from repositories.container_repository import (
+    ContainerRepository,
 )
-from repositories.container_repository import ContainerRepository
-from services.session_service import SessionService
-from services.user_service import UserService
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
+)
 
 
 client = testing.TestClient(app)
-sessions = SessionService()
-users = UserService()
 containers = ContainerRepository()
 
-admin = users.get_user_by_email(
-    BOOTSTRAP_ADMIN_EMAIL
-)
+admin = get_active_user("admin")
+
+assert admin is not None
 
 records = [
     item
@@ -34,15 +33,10 @@ record = max(
 
 container_id = record["id"]
 
-token = sessions.create_session(
-    admin["id"]
+token, headers = create_authenticated_headers(
+    client,
+    admin["id"],
 )
-
-headers = {
-    "Cookie": (
-        f"{SESSION_COOKIE_NAME}={token}"
-    )
-}
 
 
 def run_action(action):
@@ -106,7 +100,7 @@ assert response.status_code == 400
 print("PASS: invalid action rejected")
 
 
-sessions.delete_session(token)
+delete_test_session(token)
 
 print(
     "\nPASS: container lifecycle actions work correctly"

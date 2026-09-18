@@ -1,28 +1,25 @@
 from falcon import testing
 
 from app import app
-from config import (
-    BOOTSTRAP_ADMIN_EMAIL,
-    SESSION_COOKIE_NAME,
-)
 from db.database import get_connection
 from repositories.container_repository import (
     ContainerRepository,
 )
 from services.lxd_service import LXDService
-from services.session_service import SessionService
-from services.user_service import UserService
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
+)
 
 
 client = testing.TestClient(app)
-sessions = SessionService()
-users = UserService()
 containers = ContainerRepository()
 lxd = LXDService()
 
-admin = users.get_user_by_email(
-    BOOTSTRAP_ADMIN_EMAIL
-)
+admin = get_active_user("admin")
+
+assert admin is not None
 
 records = [
     item
@@ -42,15 +39,10 @@ record = max(
 container_id = record["id"]
 container_name = record["lxd_name"]
 
-token = sessions.create_session(
-    admin["id"]
+token, headers = create_authenticated_headers(
+    client,
+    admin["id"],
 )
-
-headers = {
-    "Cookie": (
-        f"{SESSION_COOKIE_NAME}={token}"
-    )
-}
 
 
 print("1. Wrong confirmation")
@@ -107,8 +99,7 @@ print("\n4. Verify LXD cleanup")
 
 lxd_names = {
     item.name
-    for item
-    in lxd.client.containers.all()
+    for item in lxd.client.containers.all()
 }
 
 assert container_name not in lxd_names
@@ -155,7 +146,7 @@ print(
 )
 
 
-sessions.delete_session(token)
+delete_test_session(token)
 
 print(
     "\nPASS: safe container deletion "

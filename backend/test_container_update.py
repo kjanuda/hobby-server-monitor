@@ -1,29 +1,22 @@
 from falcon import testing
 
 from app import app
-
-from config import (
-    BOOTSTRAP_ADMIN_EMAIL,
-    SESSION_COOKIE_NAME,
-)
-
 from repositories.container_repository import (
     ContainerRepository,
 )
-
-from services.session_service import SessionService
-from services.user_service import UserService
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
+)
 
 
 client = testing.TestClient(app)
-
-sessions = SessionService()
-users = UserService()
 containers = ContainerRepository()
 
-admin = users.get_user_by_email(
-    BOOTSTRAP_ADMIN_EMAIL
-)
+admin = get_active_user("admin")
+
+assert admin is not None
 
 records = [
     item
@@ -40,17 +33,14 @@ record = max(
     key=lambda item: item["id"],
 )
 
-token = sessions.create_session(
-    admin["id"]
+token, headers = create_authenticated_headers(
+    client,
+    admin["id"],
 )
 
 response = client.simulate_patch(
     f"/api/containers/{record['id']}",
-    headers={
-        "Cookie": (
-            f"{SESSION_COOKIE_NAME}={token}"
-        )
-    },
+    headers=headers,
     json={
         "memory": "768MiB",
         "cpu_cores": 1,
@@ -60,11 +50,12 @@ response = client.simulate_patch(
 )
 
 print("HTTP:", response.status_code)
+
 print(response.json)
 
 assert response.status_code == 200
 
-sessions.delete_session(token)
+delete_test_session(token)
 
 print(
     "PASS: stopped container limits "

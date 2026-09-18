@@ -1,16 +1,22 @@
 from falcon import testing
 
 from app import app
-from config import SESSION_COOKIE_NAME
-from services.session_service import (
-    SessionService,
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
 )
 
 
 client = testing.TestClient(app)
-sessions = SessionService()
 
-USER_ID = 1
+user = get_active_user(
+    "container_user"
+)
+
+assert user is not None
+
+USER_ID = user["id"]
 
 
 print("1. No session")
@@ -29,85 +35,91 @@ print(
 
 print("\n2. Container user own quota")
 
-token = sessions.create_session(
-    USER_ID
-)
-
-headers = {
-    "Cookie": (
-        f"{SESSION_COOKIE_NAME}={token}"
+token, headers = (
+    create_authenticated_headers(
+        client,
+        USER_ID,
     )
-}
-
-response = client.simulate_get(
-    "/api/me/quota",
-    headers=headers,
 )
 
-print("HTTP:", response.status_code)
-print(response.json)
+try:
+    response = client.simulate_get(
+        "/api/me/quota",
+        headers=headers,
+    )
 
-assert response.status_code == 200
+    print(
+        "HTTP:",
+        response.status_code,
+    )
 
-assert "limits" in response.json
-assert "used" in response.json
-assert "remaining" in response.json
-assert "unlimited" in response.json
+    print(response.json)
 
-assert (
-    response.json["user_id"]
-    == USER_ID
-)
+    assert response.status_code == 200
 
-print(
-    "PASS: user can read own "
-    "quota usage"
-)
+    assert "limits" in response.json
+    assert "used" in response.json
+    assert "remaining" in response.json
+    assert "unlimited" in response.json
 
-
-print("\n3. Verify quota math")
-
-limits = response.json["limits"]
-used = response.json["used"]
-remaining = response.json["remaining"]
-
-if limits["ram_bytes"] > 0:
     assert (
-        remaining["ram_bytes"]
-        == max(
-            limits["ram_bytes"]
-            - used["ram_bytes"],
-            0,
-        )
+        response.json["user_id"]
+        == USER_ID
     )
 
-if limits["cpu_cores"] > 0:
-    assert (
-        remaining["cpu_cores"]
-        == max(
-            limits["cpu_cores"]
-            - used["cpu_cores"],
-            0,
-        )
+    print(
+        "PASS: user can read own "
+        "quota usage"
     )
 
-if limits["disk_bytes"] > 0:
-    assert (
-        remaining["disk_bytes"]
-        == max(
-            limits["disk_bytes"]
-            - used["disk_bytes"],
-            0,
+
+    print("\n3. Verify quota math")
+
+    limits = response.json["limits"]
+    used = response.json["used"]
+    remaining = response.json[
+        "remaining"
+    ]
+
+    if limits["ram_bytes"] > 0:
+        assert (
+            remaining["ram_bytes"]
+            == max(
+                limits["ram_bytes"]
+                - used["ram_bytes"],
+                0,
+            )
         )
+
+    if limits["cpu_cores"] > 0:
+        assert (
+            remaining["cpu_cores"]
+            == max(
+                limits["cpu_cores"]
+                - used["cpu_cores"],
+                0,
+            )
+        )
+
+    if limits["disk_bytes"] > 0:
+        assert (
+            remaining["disk_bytes"]
+            == max(
+                limits["disk_bytes"]
+                - used["disk_bytes"],
+                0,
+            )
+        )
+
+    print(
+        "PASS: remaining quota "
+        "calculation is correct"
     )
 
-print(
-    "PASS: remaining quota "
-    "calculation is correct"
-)
 
+finally:
+    delete_test_session(token)
 
-sessions.delete_session(token)
 
 print(
     "\nPASS: own quota API "

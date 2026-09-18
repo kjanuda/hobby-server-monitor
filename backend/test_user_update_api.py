@@ -3,37 +3,34 @@ import uuid
 from falcon import testing
 
 from app import app
-from config import (
-    BOOTSTRAP_ADMIN_EMAIL,
-    SESSION_COOKIE_NAME,
-)
 from db.database import get_connection
-from services.session_service import SessionService
-from services.user_service import UserService
+from services.session_service import (
+    SessionService,
+)
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
+)
 
 
 client = testing.TestClient(app)
 sessions = SessionService()
-users = UserService()
 
-admin = users.get_user_by_email(
-    BOOTSTRAP_ADMIN_EMAIL
-)
+admin = get_active_user("admin")
 
 assert admin is not None
 assert admin["role"] == "admin"
 
-admin_token = sessions.create_session(
-    admin["id"]
+admin_token, headers = (
+    create_authenticated_headers(
+        client,
+        admin["id"],
+    )
 )
 
-headers = {
-    "Cookie": (
-        f"{SESSION_COOKIE_NAME}={admin_token}"
-    )
-}
-
 temporary_user_id = None
+user_token = None
 
 
 try:
@@ -67,7 +64,9 @@ try:
         response.json["user"]["id"]
     )
 
-    print("PASS: temporary user created")
+    print(
+        "PASS: temporary user created"
+    )
 
 
     print("\n2. Update quota")
@@ -93,7 +92,9 @@ try:
     )
 
     assert (
-        response.json["user"]["cpu_quota"]
+        response.json["user"][
+            "cpu_quota"
+        ]
         == 2
     )
 
@@ -113,7 +114,9 @@ try:
         is not None
     )
 
-    print("PASS: user session created")
+    print(
+        "PASS: user session created"
+    )
 
 
     print("\n4. Revoke user")
@@ -133,7 +136,9 @@ try:
     print("PASS: user revoked")
 
 
-    print("\n5. Verify session invalidation")
+    print(
+        "\n5. Verify session invalidation"
+    )
 
     assert (
         sessions.get_user_from_token(
@@ -148,7 +153,9 @@ try:
     )
 
 
-    print("\n6. Admin self-demotion protection")
+    print(
+        "\n6. Admin self-demotion protection"
+    )
 
     response = client.simulate_patch(
         f"/api/users/{admin['id']}",
@@ -165,7 +172,9 @@ try:
     )
 
 
-    print("\n7. Admin self-revoke protection")
+    print(
+        "\n7. Admin self-revoke protection"
+    )
 
     response = client.simulate_delete(
         f"/api/users/{admin['id']}",
@@ -212,9 +221,14 @@ try:
 
 
 finally:
-    sessions.delete_session(
+    delete_test_session(
         admin_token
     )
+
+    if user_token is not None:
+        sessions.delete_session(
+            user_token
+        )
 
     if temporary_user_id is not None:
         connection = get_connection()
@@ -243,6 +257,6 @@ finally:
 
 
 print(
-    "\nPASS: user update/revoke API "
-    "works correctly"
+    "\nPASS: user update and revoke "
+    "API works correctly"
 )

@@ -14,6 +14,7 @@ from services.oauth_state_service import (
 from services.session_service import (
     SessionService,
 )
+from test_support import get_active_user
 
 
 client = testing.TestClient(app)
@@ -21,7 +22,11 @@ client = testing.TestClient(app)
 sessions = SessionService()
 oauth_states = OAuthStateService()
 
-USER_ID = 1
+user = get_active_user("container_user")
+
+assert user is not None
+
+USER_ID = user["id"]
 
 
 print("1. Create authenticated session")

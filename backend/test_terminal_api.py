@@ -1,116 +1,185 @@
 from falcon import testing
 
 from app import app
-from config import SESSION_COOKIE_NAME
 from services.container_access_service import (
     ContainerAccessService,
 )
-from services.session_service import SessionService
+from services.lxd_service import LXDService
+from test_support import (
+    create_authenticated_headers,
+    delete_test_session,
+    get_active_user,
+    get_registered_container,
+)
 
 
 client = testing.TestClient(app)
-sessions = SessionService()
 access = ContainerAccessService()
+lxd = LXDService()
 
-USER_ID = 1
-CONTAINER_ID = 1
+user = get_active_user("container_user")
+record = get_registered_container()
 
-
-print("1. Assign container")
-
-access.assign(
-    USER_ID,
-    CONTAINER_ID,
-    actor_email="terminal-test@example.com",
+assert user is not None, (
+    "Active container user required."
 )
 
-token = sessions.create_session(USER_ID)
+assert record is not None, (
+    "Registered container required."
+)
 
-headers = {
-    "Cookie": (
-        f"{SESSION_COOKIE_NAME}={token}"
+USER_ID = user["id"]
+CONTAINER_ID = record["id"]
+
+container = lxd.client.containers.get(
+    record["lxd_name"]
+)
+
+was_running = (
+    container.status == "Running"
+)
+
+
+try:
+    if not was_running:
+        print("Starting terminal test container...")
+        container.start(wait=True)
+
+    print("1. Assign container")
+
+    access.assign(
+        USER_ID,
+        CONTAINER_ID,
+        actor_email="terminal-test@example.com",
     )
-}
+
+    token, headers = (
+        create_authenticated_headers(
+            client,
+            USER_ID,
+        )
+    )
+
+    print("\n2. Execute command")
+
+    response = client.simulate_post(
+        f"/api/containers/{CONTAINER_ID}/terminal",
+        headers=headers,
+        json={
+            "command": "printf terminal-ok"
+        },
+    )
+
+    print("HTTP:", response.status_code)
+    print(response.json)
+
+    assert response.status_code == 200
+    assert response.json["exit_code"] == 0
+
+    assert (
+        response.json["stdout"]
+        == "terminal-ok"
+    )
+
+    print(
+        "PASS: command executed inside "
+        "assigned container"
+    )
 
 
-print("\n2. Execute command")
+    print("\n3. Verify container identity")
 
-response = client.simulate_post(
-    f"/api/containers/{CONTAINER_ID}/terminal",
-    headers=headers,
-    json={
-        "command": "printf terminal-ok"
-    },
-)
+    response = client.simulate_post(
+        f"/api/containers/{CONTAINER_ID}/terminal",
+        headers=headers,
+        json={
+            "command": "hostname"
+        },
+    )
 
-print("HTTP:", response.status_code)
-print(response.json)
+    assert response.status_code == 200
 
-assert response.status_code == 200
-assert response.json["exit_code"] == 0
-assert response.json["stdout"] == "terminal-ok"
+    hostname = (
+        response.json["stdout"].strip()
+    )
 
-print(
-    "PASS: command executed inside "
-    "assigned container"
-)
+    print(
+        "Container hostname:",
+        hostname,
+    )
 
+    assert hostname == record["lxd_name"]
 
-print("\n3. Verify container identity")
-
-response = client.simulate_post(
-    f"/api/containers/{CONTAINER_ID}/terminal",
-    headers=headers,
-    json={
-        "command": "hostname"
-    },
-)
-
-assert response.status_code == 200
-
-print(
-    "Container hostname:",
-    response.json["stdout"].strip(),
-)
+    print(
+        "PASS: command ran inside "
+        "expected LXD container"
+    )
 
 
-print("\n4. Empty command")
+    print("\n4. Empty command")
 
-response = client.simulate_post(
-    f"/api/containers/{CONTAINER_ID}/terminal",
-    headers=headers,
-    json={"command": ""},
-)
+    response = client.simulate_post(
+        f"/api/containers/{CONTAINER_ID}/terminal",
+        headers=headers,
+        json={
+            "command": ""
+        },
+    )
 
-assert response.status_code == 400
+    assert response.status_code == 400
 
-print("PASS: empty command rejected")
-
-
-print("\n5. Revoke access")
-
-access.revoke(
-    USER_ID,
-    CONTAINER_ID,
-    actor_email="terminal-test@example.com",
-)
-
-response = client.simulate_post(
-    f"/api/containers/{CONTAINER_ID}/terminal",
-    headers=headers,
-    json={
-        "command": "uname -s"
-    },
-)
-
-assert response.status_code == 403
-
-print(
-    "PASS: unassigned user receives 403"
-)
+    print(
+        "PASS: empty command rejected"
+    )
 
 
-sessions.delete_session(token)
+    print("\n5. Revoke access")
+
+    access.revoke(
+        USER_ID,
+        CONTAINER_ID,
+        actor_email="terminal-test@example.com",
+    )
+
+    response = client.simulate_post(
+        f"/api/containers/{CONTAINER_ID}/terminal",
+        headers=headers,
+        json={
+            "command": "uname -s"
+        },
+    )
+
+    assert response.status_code == 403
+
+    print(
+        "PASS: unassigned user "
+        "receives 403"
+    )
+
+
+finally:
+    try:
+        access.revoke(
+            USER_ID,
+            CONTAINER_ID,
+            actor_email="terminal-test-cleanup@example.com",
+        )
+    except Exception:
+        pass
+
+    if "token" in globals():
+        delete_test_session(token)
+
+    container = lxd.client.containers.get(
+        record["lxd_name"]
+    )
+
+    if (
+        not was_running
+        and container.status == "Running"
+    ):
+        container.stop(wait=True)
+
 
 print(
     "\nPASS: secure container terminal "
