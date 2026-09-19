@@ -9,6 +9,7 @@ Wants=hobby-server-monitor-api.service
 Type=simple
 User=__HSM_USER__
 WorkingDirectory=__HSM_ROOT__/dashboard
+EnvironmentFile=__HSM_ROOT__/.env
 
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
