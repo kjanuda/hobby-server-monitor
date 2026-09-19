@@ -9,11 +9,11 @@ Wants=hobby-server-monitor-api.service
 Type=simple
 User=__HSM_USER__
 WorkingDirectory=__HSM_ROOT__/dashboard
-EnvironmentFile=__HSM_ROOT__/.env
 
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=PORT=4321
+Environment=HSM_BACKEND_URL=http://127.0.0.1:8000
 
 ExecStart=__HSM_NODE__ __HSM_ROOT__/dashboard/dist/server/entry.mjs
 
