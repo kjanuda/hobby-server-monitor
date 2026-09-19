@@ -1,0 +1,29 @@
+# Template rendered by deploy/install-systemd.sh
+
+[Unit]
+Description=Hobby Server Monitor Astro Dashboard
+After=network.target hobby-server-monitor-api.service
+Wants=hobby-server-monitor-api.service
+
+[Service]
+Type=simple
+User=__HSM_USER__
+WorkingDirectory=__HSM_ROOT__/dashboard
+
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=4321
+
+ExecStart=__HSM_NODE__ __HSM_ROOT__/dashboard/dist/server/entry.mjs
+
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
