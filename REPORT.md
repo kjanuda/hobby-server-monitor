@@ -12,7 +12,7 @@ The metrics collector runs as an independent background service and continues op
 
 ## Time Spent
 
-These values are approximate rather than a timesheet.
+The following values are retrospective estimates; I did not track time with a timer.
 
 | Area | Approximate Time |
 | --- | ---: |
@@ -554,6 +554,6 @@ At the time of this report:
 - API/browser independence test: **passed**
 - real LXD outage survival test: **passed**
 - automatic collector recovery after LXD return: **passed**
-- production idle footprint measured: **118.67 MiB MemoryCurrent total, 4.743% CPU over a 30-second idle window**
+- production idle footprint measured: **118.67 MiB MemoryCurrent total; 4.743% of one logical CPU-equivalent over a 30-second idle window (~1.186% of total CPU capacity on the 4-logical-CPU test host)**
 
 Before submission, any OAuth credential that was previously exposed during development should be rotated if it has not already been rotated.
