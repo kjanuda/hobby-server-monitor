@@ -37,10 +37,11 @@ export interface ContainerSummary {
     description?: string;
   };
 
-  limits?: {
-    cpu?: string | null;
-    memory?: string | null;
-  };
+ limits: {
+  cpu: string | null;
+  memory: string | null;
+  cpu_allowance: string | null;
+};
 
   cpu?: {
     usage_ns?: number;
@@ -377,6 +378,267 @@ export function executeTerminalCommand(
       body: JSON.stringify({
         command,
       }),
+    },
+  );
+}
+
+export interface StoragePoolOption {
+  name: string;
+  driver: string;
+  space: {
+    total_bytes: number;
+    used_bytes: number;
+    available_bytes: number;
+  };
+  inodes: {
+    total: number;
+    used: number;
+  };
+}
+
+export interface NetworkOption {
+  name: string;
+  type: string;
+  managed: boolean;
+}
+
+export interface ContainerOptionsResponse {
+  images: string[];
+  networks: NetworkOption[];
+  storage_pools: StoragePoolOption[];
+}
+
+export interface HostResourcesResponse {
+  cpu: {
+    logical_cpus: number;
+    architecture: string | null;
+  };
+  memory: {
+    total_bytes: number;
+    used_bytes: number;
+    available_bytes: number;
+  };
+}
+
+export interface CreateContainerPayload {
+  name: string;
+  image: string;
+  memory: string;
+  cpu_cores: number;
+  cpu_allowance: number;
+  disk: string;
+  storage_pool: string;
+  network: string;
+  owner_user_id?: number;
+  ephemeral: boolean;
+  autostart: boolean;
+  description?: string;
+}
+
+export interface CreateContainerResponse {
+  message: string;
+  container: {
+    id: number;
+    lxd_uuid: string;
+    lxd_name: string;
+    description: string | null;
+    owner_user_id: number | null;
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+export function getContainerOptions() {
+  return apiJson<ContainerOptionsResponse>(
+    "/api/container-options",
+  );
+}
+
+export function getHostResources() {
+  return apiJson<HostResourcesResponse>(
+    "/api/host/resources",
+  );
+}
+
+export function createContainer(
+  payload: CreateContainerPayload,
+) {
+  return apiJson<CreateContainerResponse>(
+    "/api/containers",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export interface UpdateContainerPayload {
+  memory?: string;
+  cpu_cores?: number;
+  cpu_allowance?: number;
+  disk?: string;
+}
+
+export interface UpdateContainerResponse {
+  message: string;
+  container: ContainerSummary;
+}
+
+export interface DeleteContainerResponse {
+  message: string;
+  container: {
+    container_id: number;
+    name: string;
+    lxd_uuid: string;
+    owner_user_id: number | null;
+  };
+}
+
+export function updateContainer(
+  containerId: number,
+  payload: UpdateContainerPayload,
+) {
+  return apiJson<UpdateContainerResponse>(
+    `/api/containers/${containerId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function deleteContainer(
+  containerId: number,
+  confirmName: string,
+) {
+  return apiJson<DeleteContainerResponse>(
+    `/api/containers/${containerId}`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        confirm_name: confirmName,
+      }),
+    },
+  );
+}
+
+export interface InviteUserPayload {
+  email: string;
+  name?: string;
+  role: "admin" | "container_user";
+  ram_quota_bytes: number;
+  cpu_quota: number;
+  disk_quota_bytes: number;
+}
+
+export interface UpdateUserPayload {
+  name?: string;
+  role?: "admin" | "container_user";
+  ram_quota_bytes?: number;
+  cpu_quota?: number;
+  disk_quota_bytes?: number;
+}
+
+export interface UserResponse {
+  message: string;
+  user: UserRecord;
+}
+
+export interface AssignedContainer {
+  id: number;
+  lxd_uuid: string;
+  lxd_name: string;
+  description: string | null;
+  owner_user_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserAssignmentsResponse {
+  user_id: number;
+  containers: AssignedContainer[];
+  count: number;
+}
+
+export function inviteUser(
+  payload: InviteUserPayload,
+) {
+  return apiJson<UserResponse>(
+    "/api/users",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function updateUser(
+  userId: number,
+  payload: UpdateUserPayload,
+) {
+  return apiJson<UserResponse>(
+    `/api/users/${userId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function revokeUser(
+  userId: number,
+) {
+  return apiJson<UserResponse>(
+    `/api/users/${userId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function getUserAssignments(
+  userId: number,
+) {
+  return apiJson<UserAssignmentsResponse>(
+    `/api/users/${userId}/containers`,
+  );
+}
+
+export function assignContainerToUser(
+  userId: number,
+  containerId: number,
+) {
+  return apiJson(
+    `/api/users/${userId}/containers/${containerId}`,
+    {
+      method: "PUT",
+    },
+  );
+}
+
+export function unassignContainerFromUser(
+  userId: number,
+  containerId: number,
+) {
+  return apiJson(
+    `/api/users/${userId}/containers/${containerId}`,
+    {
+      method: "DELETE",
     },
   );
 }

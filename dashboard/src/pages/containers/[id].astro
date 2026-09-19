@@ -121,6 +121,21 @@ const { id } = Astro.params;
           <button data-action="unfreeze">
             Unfreeze
           </button>
+
+          <button
+            id="edit-resources-button"
+            type="button"
+          >
+            Edit resources
+          </button>
+
+          <button
+            id="delete-container-button"
+            class="danger-button"
+            type="button"
+          >
+            Delete container
+          </button>
         </div>
 
         <p
@@ -297,6 +312,207 @@ const { id } = Astro.params;
         </div>
       </section>
 
+      <!-- Edit Resources Modal -->
+      <div
+        id="edit-resources-modal"
+        class="modal-backdrop hidden"
+        aria-hidden="true"
+      >
+        <div
+          class="modal-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-resources-title"
+        >
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">
+                Resource limits
+              </p>
+
+              <h2 id="edit-resources-title">
+                Edit resources
+              </h2>
+            </div>
+
+            <button
+              id="close-edit-resources"
+              class="icon-button"
+              type="button"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          <form id="edit-resources-form">
+            <div class="form-grid">
+              <label class="field">
+                <span>Memory</span>
+
+                <input
+                  id="edit-memory"
+                  type="text"
+                  required
+                />
+
+                <small>
+                  Minimum 256 MiB.
+                </small>
+              </label>
+
+              <label class="field">
+                <span>CPU cores</span>
+
+                <input
+                  id="edit-cpu-cores"
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                />
+              </label>
+
+              <label class="field">
+                <span>CPU allowance</span>
+
+                <div class="input-suffix">
+                  <input
+                    id="edit-cpu-allowance"
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="1"
+                    required
+                  />
+
+                  <span>%</span>
+                </div>
+              </label>
+
+              <label class="field">
+                <span>Disk limit</span>
+
+                <input
+                  id="edit-disk"
+                  type="text"
+                  required
+                />
+
+                <small>
+                  Disk size can be increased,
+                  but not reduced.
+                </small>
+              </label>
+            </div>
+
+            <div
+              id="edit-resources-error"
+              class="form-error hidden"
+            ></div>
+
+            <div class="modal-footer">
+              <button
+                id="cancel-edit-resources"
+                class="secondary-button"
+                type="button"
+              >
+                Cancel
+              </button>
+
+              <button
+                id="save-resources-button"
+                type="submit"
+              >
+                Save changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Delete Container Modal -->
+      <div
+        id="delete-container-modal"
+        class="modal-backdrop hidden"
+        aria-hidden="true"
+      >
+        <div
+          class="modal-card danger-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-container-title"
+        >
+          <div class="modal-header">
+            <div>
+              <p class="eyebrow">
+                Destructive action
+              </p>
+
+              <h2 id="delete-container-title">
+                Delete container
+              </h2>
+            </div>
+
+            <button
+              id="close-delete-container"
+              class="icon-button"
+              type="button"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          <p class="delete-warning">
+            This permanently removes the LXD
+            container and its registry record.
+          </p>
+
+          <p class="delete-confirm-copy">
+            Type
+            <strong id="delete-confirm-name"></strong>
+            to confirm.
+          </p>
+
+          <form id="delete-container-form">
+            <label class="field">
+              <span>Container name</span>
+
+              <input
+                id="delete-confirm-input"
+                type="text"
+                autocomplete="off"
+                required
+              />
+            </label>
+
+            <div
+              id="delete-container-error"
+              class="form-error hidden"
+            ></div>
+
+            <div class="modal-footer">
+              <button
+                id="cancel-delete-container"
+                class="secondary-button"
+                type="button"
+              >
+                Cancel
+              </button>
+
+              <button
+                id="confirm-delete-button"
+                class="danger-button"
+                type="submit"
+              >
+                Delete permanently
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <section
         id="error"
         class="error hidden"
@@ -305,11 +521,14 @@ const { id } = Astro.params;
 
     <script>
       import {
+        deleteContainer,
         executeTerminalCommand,
         getContainer,
         getContainerMetrics,
         getCurrentUser,
         runContainerAction,
+        updateContainer,
+        type ContainerSummary,
         type MetricPoint,
       } from "../../lib/api";
 
@@ -323,6 +542,64 @@ const { id } = Astro.params;
 
       const containerId =
         Number(rawId);
+
+      let currentContainer:
+        ContainerSummary | null = null;
+
+      const editButton =
+        document.querySelector<HTMLButtonElement>(
+          "#edit-resources-button",
+        );
+
+      const deleteButton =
+        document.querySelector<HTMLButtonElement>(
+          "#delete-container-button",
+        );
+
+      const editModal =
+        document.querySelector<HTMLElement>(
+          "#edit-resources-modal",
+        );
+
+      const deleteModal =
+        document.querySelector<HTMLElement>(
+          "#delete-container-modal",
+        );
+
+      const editForm =
+        document.querySelector<HTMLFormElement>(
+          "#edit-resources-form",
+        );
+
+      const deleteForm =
+        document.querySelector<HTMLFormElement>(
+          "#delete-container-form",
+        );
+
+      const editMemory =
+        document.querySelector<HTMLInputElement>(
+          "#edit-memory",
+        );
+
+      const editCpu =
+        document.querySelector<HTMLInputElement>(
+          "#edit-cpu-cores",
+        );
+
+      const editCpuAllowance =
+        document.querySelector<HTMLInputElement>(
+          "#edit-cpu-allowance",
+        );
+
+      const editDisk =
+        document.querySelector<HTMLInputElement>(
+          "#edit-disk",
+        );
+
+      const deleteConfirmInput =
+        document.querySelector<HTMLInputElement>(
+          "#delete-confirm-input",
+        );
 
       function formatBytes(
         value?: number | null,
@@ -408,6 +685,73 @@ const { id } = Astro.params;
         if (element) {
           element.textContent = value;
         }
+      }
+
+      function bytesToLimit(
+        value?: number | null,
+      ) {
+        if (
+          value === null
+          || value === undefined
+        ) {
+          return "";
+        }
+
+        const gib = 1024 ** 3;
+        const mib = 1024 ** 2;
+
+        if (value % gib === 0) {
+          return `${value / gib}GiB`;
+        }
+
+        if (value % mib === 0) {
+          return `${value / mib}MiB`;
+        }
+
+        return `${value}B`;
+      }
+
+      function showModal(
+        modal: HTMLElement | null,
+      ) {
+        modal?.classList.remove("hidden");
+
+        modal?.setAttribute(
+          "aria-hidden",
+          "false",
+        );
+      }
+
+      function hideModal(
+        modal: HTMLElement | null,
+      ) {
+        modal?.classList.add("hidden");
+
+        modal?.setAttribute(
+          "aria-hidden",
+          "true",
+        );
+      }
+
+      function setFormError(
+        selector: string,
+        message = "",
+      ) {
+        const element =
+          document.querySelector<HTMLElement>(
+            selector,
+          );
+
+        if (!element) {
+          return;
+        }
+
+        element.textContent = message;
+
+        element.classList.toggle(
+          "hidden",
+          !message,
+        );
       }
 
       let selectedHours = 6;
@@ -878,6 +1222,8 @@ const { id } = Astro.params;
           const container =
             data.container;
 
+          currentContainer = container;
+
           setText(
             "#container-name",
             container.name,
@@ -981,6 +1327,250 @@ const { id } = Astro.params;
           }
         }
       }
+
+      editButton?.addEventListener(
+        "click",
+        () => {
+          if (!currentContainer) {
+            return;
+          }
+
+          if (editMemory) {
+            editMemory.value =
+              currentContainer.limits.memory
+              ?? "";
+          }
+
+          if (editCpu) {
+            editCpu.value =
+              currentContainer.limits.cpu
+              ?? "1";
+          }
+
+          if (editCpuAllowance) {
+            editCpuAllowance.value =
+              String(
+                Number.parseInt(
+                  currentContainer
+                    .limits
+                    .cpu_allowance
+                    ?? "100",
+                  10,
+                ),
+              );
+          }
+
+          if (editDisk) {
+            editDisk.value =
+              bytesToLimit(
+                currentContainer
+                  .disk
+                  ?.allocated_bytes,
+              );
+          }
+
+          setFormError(
+            "#edit-resources-error",
+          );
+
+          showModal(editModal);
+        },
+      );
+
+      document
+        .querySelector(
+          "#close-edit-resources",
+        )
+        ?.addEventListener(
+          "click",
+          () => hideModal(editModal),
+        );
+
+      document
+        .querySelector(
+          "#cancel-edit-resources",
+        )
+        ?.addEventListener(
+          "click",
+          () => hideModal(editModal),
+        );
+
+      editForm?.addEventListener(
+        "submit",
+        async (event) => {
+          event.preventDefault();
+
+          if (
+            !editMemory
+            || !editCpu
+            || !editCpuAllowance
+            || !editDisk
+          ) {
+            return;
+          }
+
+          setFormError(
+            "#edit-resources-error",
+          );
+
+          const saveButton =
+            document.querySelector<HTMLButtonElement>(
+              "#save-resources-button",
+            );
+
+          try {
+            if (saveButton) {
+              saveButton.disabled = true;
+              saveButton.textContent =
+                "Saving...";
+            }
+
+            await updateContainer(
+              containerId,
+              {
+                memory:
+                  editMemory.value.trim(),
+
+                cpu_cores:
+                  Number.parseInt(
+                    editCpu.value,
+                    10,
+                  ),
+
+                cpu_allowance:
+                  Number.parseInt(
+                    editCpuAllowance.value,
+                    10,
+                  ),
+
+                disk:
+                  editDisk.value.trim(),
+              },
+            );
+
+            hideModal(editModal);
+
+            await loadContainer();
+          } catch (cause) {
+            setFormError(
+              "#edit-resources-error",
+              cause instanceof Error
+                ? cause.message
+                : "Unable to update resources.",
+            );
+          } finally {
+            if (saveButton) {
+              saveButton.disabled = false;
+              saveButton.textContent =
+                "Save changes";
+            }
+          }
+        },
+      );
+
+      deleteButton?.addEventListener(
+        "click",
+        () => {
+          if (!currentContainer) {
+            return;
+          }
+
+          setText(
+            "#delete-confirm-name",
+            currentContainer.name,
+          );
+
+          if (deleteConfirmInput) {
+            deleteConfirmInput.value = "";
+          }
+
+          setFormError(
+            "#delete-container-error",
+          );
+
+          showModal(deleteModal);
+        },
+      );
+
+      document
+        .querySelector(
+          "#close-delete-container",
+        )
+        ?.addEventListener(
+          "click",
+          () => hideModal(deleteModal),
+        );
+
+      document
+        .querySelector(
+          "#cancel-delete-container",
+        )
+        ?.addEventListener(
+          "click",
+          () => hideModal(deleteModal),
+        );
+
+      deleteForm?.addEventListener(
+        "submit",
+        async (event) => {
+          event.preventDefault();
+
+          if (
+            !currentContainer
+            || !deleteConfirmInput
+          ) {
+            return;
+          }
+
+          const confirmation =
+            deleteConfirmInput.value.trim();
+
+          if (
+            confirmation
+            !== currentContainer.name
+          ) {
+            setFormError(
+              "#delete-container-error",
+              "Container name does not match.",
+            );
+
+            return;
+          }
+
+          const confirmButton =
+            document.querySelector<HTMLButtonElement>(
+              "#confirm-delete-button",
+            );
+
+          try {
+            if (confirmButton) {
+              confirmButton.disabled = true;
+              confirmButton.textContent =
+                "Deleting...";
+            }
+
+            await deleteContainer(
+              containerId,
+              confirmation,
+            );
+
+            window.location.href = "/";
+          } catch (cause) {
+            setFormError(
+              "#delete-container-error",
+              cause instanceof Error
+                ? cause.message
+                : "Unable to delete container.",
+            );
+
+            if (confirmButton) {
+              confirmButton.disabled = false;
+              confirmButton.textContent =
+                "Delete permanently";
+            }
+          }
+        },
+      );
 
       document
         .querySelectorAll<HTMLButtonElement>(
@@ -1449,6 +2039,166 @@ const { id } = Astro.params;
     gap: 20px;
     color: #68717e;
     font-size: 10px;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgb(0 0 0 / 0.72);
+    backdrop-filter: blur(5px);
+  }
+
+  .modal-card {
+    width: min(100%, 620px);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    border: 1px solid #282d34;
+    border-radius: 16px;
+    background: #111318;
+    box-shadow:
+      0 30px 80px rgb(0 0 0 / 0.45);
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 24px;
+    border-bottom: 1px solid #242930;
+  }
+
+  .modal-header h2 {
+    margin: 0;
+  }
+
+  .icon-button {
+    width: 34px;
+    height: 34px;
+    border: 1px solid #30353d;
+    border-radius: 8px;
+    color: #aeb5bf;
+    background: transparent;
+    cursor: pointer;
+    font-size: 20px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field span {
+    color: #c5cad1;
+    font-size: 11px;
+  }
+
+  .field small {
+    color: #68717e;
+    font-size: 10px;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #2c3239;
+    border-radius: 8px;
+    outline: none;
+    color: #f1f2f4;
+    background: #0b0d10;
+  }
+
+  .field input:focus {
+    border-color: #555e6b;
+  }
+
+  .input-suffix {
+    display: flex;
+    align-items: center;
+    border: 1px solid #2c3239;
+    border-radius: 8px;
+    background: #0b0d10;
+    overflow: hidden;
+  }
+
+  .input-suffix input {
+    border: 0;
+  }
+
+  .input-suffix > span {
+    padding-right: 12px;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px 24px;
+    border-top: 1px solid #242930;
+  }
+
+  .modal-footer button {
+    padding: 10px 15px;
+    border: 1px solid #30353d;
+    border-radius: 8px;
+    color: #e3e5e8;
+    background: #191c21;
+    cursor: pointer;
+  }
+
+  .modal-footer button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  .danger-button {
+    border-color: #63383b !important;
+    color: #ef9a9f !important;
+    background: #241416 !important;
+  }
+
+  .delete-warning,
+  .delete-confirm-copy {
+    margin: 0;
+    padding: 20px 24px 0;
+    color: #929aa5;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .delete-confirm-copy strong {
+    color: #f0f2f4;
+  }
+
+  .danger-modal form {
+    padding-top: 20px;
+  }
+
+  .danger-modal form > .field {
+    padding: 0 24px;
+  }
+
+  .form-error {
+    margin: 0 24px 20px;
+    padding: 12px;
+    border: 1px solid #63383b;
+    border-radius: 8px;
+    color: #ef9a9f;
+    background: #211315;
+    font-size: 11px;
   }
 
   @media (max-width: 800px) {

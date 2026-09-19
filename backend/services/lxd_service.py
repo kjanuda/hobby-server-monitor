@@ -361,6 +361,9 @@ class LXDService:
             "limits": {
                 "cpu": config.get("limits.cpu"),
                 "memory": config.get("limits.memory"),
+                "cpu_allowance": config.get(
+                    "limits.cpu.allowance"
+                ),
             },
             "ipv4": None,
             "pid": None,

@@ -66,6 +66,7 @@ const pageTitle = "Hobby Server Monitor";
             <button
               class="nav-item active"
               data-section="overview"
+              type="button"
             >
               Overview
             </button>
@@ -73,6 +74,7 @@ const pageTitle = "Hobby Server Monitor";
             <button
               class="nav-item"
               data-section="containers"
+              type="button"
             >
               Containers
             </button>
@@ -81,6 +83,7 @@ const pageTitle = "Hobby Server Monitor";
               id="users-nav"
               class="nav-item hidden"
               data-section="users"
+              type="button"
             >
               Users
             </button>
@@ -253,11 +256,632 @@ const pageTitle = "Hobby Server Monitor";
       </div>
     </div>
 
+    <!-- Create Container Modal -->
+    <div
+      id="create-container-modal"
+      class="modal-backdrop hidden"
+      aria-hidden="true"
+    >
+      <div
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-container-title"
+      >
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">
+              LXD provisioning
+            </p>
+
+            <h2 id="create-container-title">
+              Create container
+            </h2>
+
+            <p class="modal-description">
+              Configure resource limits and runtime options.
+            </p>
+          </div>
+
+          <button
+            id="close-create-container"
+            class="icon-button"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="create-container-form">
+          <div class="form-grid">
+            <label class="field">
+              <span>Container name</span>
+
+              <input
+                id="container-name-input"
+                name="name"
+                type="text"
+                placeholder="dev-server"
+                minlength="1"
+                maxlength="63"
+                pattern="[a-z][a-z0-9-]*"
+                required
+              />
+
+              <small>
+                Lowercase letters, numbers and hyphens.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>Ubuntu image</span>
+
+              <select
+                id="container-image-input"
+                name="image"
+                required
+              >
+                <option value="">
+                  Loading images...
+                </option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Memory</span>
+
+              <input
+                id="container-memory-input"
+                name="memory"
+                type="text"
+                value="512MiB"
+                placeholder="512MiB"
+                required
+              />
+
+              <small>
+                Minimum 256 MiB.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>CPU cores</span>
+
+              <input
+                id="container-cpu-input"
+                name="cpu_cores"
+                type="number"
+                value="1"
+                min="1"
+                step="1"
+                required
+              />
+
+              <small id="host-cpu-hint">
+                Loading host capacity...
+              </small>
+            </label>
+
+            <label class="field">
+              <span>CPU allowance</span>
+
+              <div class="input-suffix">
+                <input
+                  id="container-cpu-allowance-input"
+                  name="cpu_allowance"
+                  type="number"
+                  value="100"
+                  min="1"
+                  max="100"
+                  step="1"
+                  required
+                />
+
+                <span>%</span>
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Disk limit</span>
+
+              <input
+                id="container-disk-input"
+                name="disk"
+                type="text"
+                value="5GiB"
+                placeholder="5GiB"
+                required
+              />
+
+              <small>
+                Minimum 1 GiB.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>Storage pool</span>
+
+              <select
+                id="container-storage-input"
+                name="storage_pool"
+                required
+              >
+                <option value="">
+                  Loading pools...
+                </option>
+              </select>
+
+              <small id="storage-pool-hint"></small>
+            </label>
+
+            <label class="field">
+              <span>Network</span>
+
+              <select
+                id="container-network-input"
+                name="network"
+                required
+              >
+                <option value="">
+                  Loading networks...
+                </option>
+              </select>
+            </label>
+
+            <label class="field full">
+              <span>Owner</span>
+
+              <select
+                id="container-owner-input"
+                name="owner_user_id"
+              >
+                <option value="">
+                  No owner
+                </option>
+              </select>
+
+              <small>
+                Optional. Resource quotas are enforced
+                for the selected owner.
+              </small>
+            </label>
+
+            <label class="field full">
+              <span>Description</span>
+
+              <textarea
+                id="container-description-input"
+                name="description"
+                rows="3"
+                placeholder="Testing environment"
+              ></textarea>
+            </label>
+          </div>
+
+          <div class="toggle-grid">
+            <label class="toggle-row">
+              <input
+                id="container-autostart-input"
+                name="autostart"
+                type="checkbox"
+                checked
+              />
+
+              <span>
+                <strong>Autostart</strong>
+                <small>
+                  Start automatically when the host boots.
+                </small>
+              </span>
+            </label>
+
+            <label class="toggle-row">
+              <input
+                id="container-ephemeral-input"
+                name="ephemeral"
+                type="checkbox"
+              />
+
+              <span>
+                <strong>Ephemeral</strong>
+                <small>
+                  Remove the container after it stops.
+                </small>
+              </span>
+            </label>
+          </div>
+
+          <div
+            id="create-container-error"
+            class="form-error hidden"
+          ></div>
+
+          <div class="modal-footer">
+            <button
+              id="cancel-create-container"
+              class="secondary-button"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="submit-create-container"
+              class="primary-button"
+              type="submit"
+            >
+              Create container
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Invite User Modal -->
+    <div
+      id="invite-user-modal"
+      class="modal-backdrop hidden"
+      aria-hidden="true"
+    >
+      <div
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="invite-user-title"
+      >
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">
+              Access control
+            </p>
+
+            <h2 id="invite-user-title">
+              Invite user
+            </h2>
+
+            <p class="modal-description">
+              Invite a Google account and configure resource quotas.
+            </p>
+          </div>
+
+          <button
+            id="close-invite-user"
+            class="icon-button"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="invite-user-form">
+          <div class="form-grid">
+            <label class="field full">
+              <span>Email address</span>
+
+              <input
+                id="invite-email"
+                type="email"
+                placeholder="user@example.com"
+                required
+              />
+
+              <small>
+                Must match the Google account used to sign in.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>Name</span>
+
+              <input
+                id="invite-name"
+                type="text"
+                placeholder="Optional display name"
+              />
+            </label>
+
+            <label class="field">
+              <span>Role</span>
+
+              <select
+                id="invite-role"
+                required
+              >
+                <option value="container_user">
+                  Container user
+                </option>
+
+                <option value="admin">
+                  Admin
+                </option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>RAM quota</span>
+
+              <div class="input-suffix">
+                <input
+                  id="invite-ram-quota"
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  value="0"
+                  required
+                />
+
+                <span>GiB</span>
+              </div>
+
+              <small>
+                0 = unlimited.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>CPU quota</span>
+
+              <input
+                id="invite-cpu-quota"
+                type="number"
+                min="0"
+                step="1"
+                value="0"
+                required
+              />
+
+              <small>
+                0 = unlimited.
+              </small>
+            </label>
+
+            <label class="field full">
+              <span>Disk quota</span>
+
+              <div class="input-suffix">
+                <input
+                  id="invite-disk-quota"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value="0"
+                  required
+                />
+
+                <span>GiB</span>
+              </div>
+
+              <small>
+                0 = unlimited.
+              </small>
+            </label>
+          </div>
+
+          <div
+            id="invite-user-error"
+            class="form-error hidden"
+          ></div>
+
+          <div class="modal-footer">
+            <button
+              id="cancel-invite-user"
+              class="secondary-button"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="submit-invite-user"
+              class="primary-button"
+              type="submit"
+            >
+              Invite user
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Manage User Modal -->
+    <div
+      id="manage-user-modal"
+      class="modal-backdrop hidden"
+      aria-hidden="true"
+    >
+      <div
+        class="modal-card manage-user-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manage-user-title"
+      >
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">
+              Access control
+            </p>
+
+            <h2 id="manage-user-title">
+              Manage user
+            </h2>
+
+            <p class="modal-description">
+              Update quotas and container access.
+            </p>
+          </div>
+
+          <button
+            id="close-manage-user"
+            class="icon-button"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="manage-user-form">
+          <div class="form-grid">
+            <label class="field full">
+              <span>Email address</span>
+
+              <input
+                id="manage-user-email"
+                type="email"
+                readonly
+              />
+            </label>
+
+            <label class="field">
+              <span>Name</span>
+
+              <input
+                id="manage-user-name"
+                type="text"
+              />
+            </label>
+
+            <label class="field">
+              <span>Role</span>
+
+              <select
+                id="manage-user-role"
+                required
+              >
+                <option value="container_user">
+                  Container user
+                </option>
+
+                <option value="admin">
+                  Admin
+                </option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>RAM quota</span>
+
+              <div class="input-suffix">
+                <input
+                  id="manage-user-ram"
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  required
+                />
+
+                <span>GiB</span>
+              </div>
+
+              <small>
+                0 = unlimited.
+              </small>
+            </label>
+
+            <label class="field">
+              <span>CPU quota</span>
+
+              <input
+                id="manage-user-cpu"
+                type="number"
+                min="0"
+                step="1"
+                required
+              />
+
+              <small>
+                0 = unlimited.
+              </small>
+            </label>
+
+            <label class="field full">
+              <span>Disk quota</span>
+
+              <div class="input-suffix">
+                <input
+                  id="manage-user-disk"
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  required
+                />
+
+                <span>GiB</span>
+              </div>
+
+              <small>
+                0 = unlimited.
+              </small>
+            </label>
+          </div>
+
+          <div class="assignment-section">
+            <div>
+              <p class="eyebrow">
+                Container access
+              </p>
+
+              <h3>
+                Assignments
+              </h3>
+            </div>
+
+            <div
+              id="manage-user-assignments"
+              class="assignment-list"
+            >
+              Loading assignments...
+            </div>
+          </div>
+
+          <div
+            id="manage-user-error"
+            class="form-error hidden"
+          ></div>
+
+          <div class="modal-footer">
+            <button
+              id="revoke-user-button"
+              class="secondary-button danger-button"
+              type="button"
+            >
+              Revoke access
+            </button>
+
+            <button
+              id="cancel-manage-user"
+              class="secondary-button"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="save-manage-user"
+              class="primary-button"
+              type="submit"
+            >
+              Save changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
       import {
         getContainers,
         getCurrentUser,
+        createContainer as createContainerRequest,
         getUsers,
+        inviteUser,
+        updateUser,
+        revokeUser,
+        getUserAssignments,
+        assignContainerToUser,
+        unassignContainerFromUser,
         logout,
         type ContainerSummary,
         type UserRecord,
@@ -289,7 +913,7 @@ const pageTitle = "Hobby Server Monitor";
         );
 
       const createButton =
-        document.querySelector<HTMLElement>(
+        document.querySelector<HTMLButtonElement>(
           "#create-container-button",
         );
 
@@ -353,6 +977,243 @@ const pageTitle = "Hobby Server Monitor";
           "#error-message",
         );
 
+      /*
+       * Create container modal elements
+       */
+      const createModal =
+        document.querySelector<HTMLElement>(
+          "#create-container-modal",
+        );
+
+      const closeCreateButton =
+        document.querySelector<HTMLButtonElement>(
+          "#close-create-container",
+        );
+
+      const cancelCreateButton =
+        document.querySelector<HTMLButtonElement>(
+          "#cancel-create-container",
+        );
+
+      const createForm =
+        document.querySelector<HTMLFormElement>(
+          "#create-container-form",
+        );
+
+      const createSubmitButton =
+        document.querySelector<HTMLButtonElement>(
+          "#submit-create-container",
+        );
+
+      const createError =
+        document.querySelector<HTMLElement>(
+          "#create-container-error",
+        );
+
+      const containerNameInput =
+        document.querySelector<HTMLInputElement>(
+          "#container-name-input",
+        );
+
+      const containerImageInput =
+        document.querySelector<HTMLSelectElement>(
+          "#container-image-input",
+        );
+
+      const containerMemoryInput =
+        document.querySelector<HTMLInputElement>(
+          "#container-memory-input",
+        );
+
+      const containerCpuInput =
+        document.querySelector<HTMLInputElement>(
+          "#container-cpu-input",
+        );
+
+      const containerCpuAllowanceInput =
+        document.querySelector<HTMLInputElement>(
+          "#container-cpu-allowance-input",
+        );
+
+      const containerDiskInput =
+        document.querySelector<HTMLInputElement>(
+          "#container-disk-input",
+        );
+
+      const containerStorageInput =
+        document.querySelector<HTMLSelectElement>(
+          "#container-storage-input",
+        );
+
+      const containerNetworkInput =
+        document.querySelector<HTMLSelectElement>(
+          "#container-network-input",
+        );
+
+      const containerOwnerInput =
+        document.querySelector<HTMLSelectElement>(
+          "#container-owner-input",
+        );
+
+      const containerDescriptionInput =
+        document.querySelector<HTMLTextAreaElement>(
+          "#container-description-input",
+        );
+
+      const containerAutostartInput =
+        document.querySelector<HTMLInputElement>(
+          "#container-autostart-input",
+        );
+
+      const containerEphemeralInput =
+        document.querySelector<HTMLInputElement>(
+          "#container-ephemeral-input",
+        );
+
+      const hostCpuHint =
+        document.querySelector<HTMLElement>(
+          "#host-cpu-hint",
+        );
+
+      const storagePoolHint =
+        document.querySelector<HTMLElement>(
+          "#storage-pool-hint",
+        );
+
+      const inviteUserButton =
+        document.querySelector<HTMLButtonElement>(
+          "#invite-user-button",
+        );
+
+      const inviteUserModal =
+        document.querySelector<HTMLElement>(
+          "#invite-user-modal",
+        );
+
+      const closeInviteUserButton =
+        document.querySelector<HTMLButtonElement>(
+          "#close-invite-user",
+        );
+
+      const cancelInviteUserButton =
+        document.querySelector<HTMLButtonElement>(
+          "#cancel-invite-user",
+        );
+
+      const inviteUserForm =
+        document.querySelector<HTMLFormElement>(
+          "#invite-user-form",
+        );
+
+      const inviteUserError =
+        document.querySelector<HTMLElement>(
+          "#invite-user-error",
+        );
+
+      const inviteEmailInput =
+        document.querySelector<HTMLInputElement>(
+          "#invite-email",
+        );
+
+      const inviteNameInput =
+        document.querySelector<HTMLInputElement>(
+          "#invite-name",
+        );
+
+      const inviteRoleInput =
+        document.querySelector<HTMLSelectElement>(
+          "#invite-role",
+        );
+
+      const inviteRamQuotaInput =
+        document.querySelector<HTMLInputElement>(
+          "#invite-ram-quota",
+        );
+
+      const inviteCpuQuotaInput =
+        document.querySelector<HTMLInputElement>(
+          "#invite-cpu-quota",
+        );
+
+      const inviteDiskQuotaInput =
+        document.querySelector<HTMLInputElement>(
+          "#invite-disk-quota",
+        );
+
+      const manageUserModal =
+        document.querySelector<HTMLElement>(
+          "#manage-user-modal",
+        );
+
+      const closeManageUserButton =
+        document.querySelector<HTMLButtonElement>(
+          "#close-manage-user",
+        );
+
+      const cancelManageUserButton =
+        document.querySelector<HTMLButtonElement>(
+          "#cancel-manage-user",
+        );
+
+      const manageUserForm =
+        document.querySelector<HTMLFormElement>(
+          "#manage-user-form",
+        );
+
+      const manageUserEmail =
+        document.querySelector<HTMLInputElement>(
+          "#manage-user-email",
+        );
+
+      const manageUserName =
+        document.querySelector<HTMLInputElement>(
+          "#manage-user-name",
+        );
+
+      const manageUserRole =
+        document.querySelector<HTMLSelectElement>(
+          "#manage-user-role",
+        );
+
+      const manageUserRam =
+        document.querySelector<HTMLInputElement>(
+          "#manage-user-ram",
+        );
+
+      const manageUserCpu =
+        document.querySelector<HTMLInputElement>(
+          "#manage-user-cpu",
+        );
+
+      const manageUserDisk =
+        document.querySelector<HTMLInputElement>(
+          "#manage-user-disk",
+        );
+
+      const manageUserAssignments =
+        document.querySelector<HTMLElement>(
+          "#manage-user-assignments",
+        );
+
+      const manageUserError =
+        document.querySelector<HTMLElement>(
+          "#manage-user-error",
+        );
+
+      const revokeUserButton =
+        document.querySelector<HTMLButtonElement>(
+          "#revoke-user-button",
+        );
+
+      const saveManageUserButton =
+        document.querySelector<HTMLButtonElement>(
+          "#save-manage-user",
+        );
+
+      let dashboardUsers: UserRecord[] = [];
+      let dashboardContainers: ContainerSummary[] = [];
+      let managedUserId: number | null = null;
+      let currentUserId: number | null = null;
 
       function escapeText(value: unknown) {
         return String(
@@ -364,7 +1225,6 @@ const pageTitle = "Hobby Server Monitor";
           .replaceAll('"', "&quot;")
           .replaceAll("'", "&#039;");
       }
-
 
       function formatBytes(
         value?: number | null,
@@ -400,6 +1260,28 @@ const pageTitle = "Hobby Server Monitor";
         )} ${units[unit]}`;
       }
 
+      function gibToBytes(value: number): number {
+        return Math.round(
+          value * 1024 * 1024 * 1024,
+        );
+      }
+
+      function bytesToGiB(
+        bytes: number,
+      ): string {
+        if (!bytes) {
+          return "0";
+        }
+
+        const value =
+          bytes / (1024 * 1024 * 1024);
+
+        return Number.isInteger(value)
+          ? String(value)
+          : String(
+              Number(value.toFixed(2)),
+            );
+      }
 
       function statusClass(
         status: string,
@@ -409,7 +1291,6 @@ const pageTitle = "Hobby Server Monitor";
           ? "running"
           : "stopped";
       }
-
 
       function containerMarkup(
         container: ContainerSummary,
@@ -470,7 +1351,6 @@ const pageTitle = "Hobby Server Monitor";
         `;
       }
 
-
       function userMarkup(
         user: UserRecord,
       ) {
@@ -493,12 +1373,11 @@ const pageTitle = "Hobby Server Monitor";
 
             <div class="user-meta">
               <span>
-                ${escapeText(
-                  user.role
-                  === "admin"
+                ${
+                  user.role === "admin"
                     ? "Administrator"
-                    : "Container User",
-                )}
+                    : "Container User"
+                }
               </span>
 
               <span class="${
@@ -512,11 +1391,18 @@ const pageTitle = "Hobby Server Monitor";
                     : "Revoked"
                 }
               </span>
+
+                <button
+                  class="secondary-button small manage-user-button"
+                  type="button"
+                  data-user-id="${user.id}"
+                >
+                  Manage
+                </button>
             </div>
           </article>
         `;
       }
-
 
       function showSection(
         sectionName: string,
@@ -564,6 +1450,1456 @@ const pageTitle = "Hobby Server Monitor";
         }
       }
 
+      /*
+       * -----------------------------
+       * Create container modal
+       * -----------------------------
+       */
+
+      function showCreateError(
+        message: string,
+      ) {
+        if (!createError) {
+          return;
+        }
+
+        createError.textContent =
+          message;
+
+        createError.classList.remove(
+          "hidden",
+        );
+      }
+
+      function clearCreateError() {
+        if (!createError) {
+          return;
+        }
+
+        createError.textContent = "";
+
+        createError.classList.add(
+          "hidden",
+        );
+      }
+
+      function openCreateModal() {
+        if (!createModal) {
+          return;
+        }
+
+        clearCreateError();
+
+        createModal.classList.remove(
+          "hidden",
+        );
+
+        createModal.setAttribute(
+          "aria-hidden",
+          "false",
+        );
+
+        document.body.classList.add(
+          "modal-open",
+        );
+
+        window.setTimeout(() => {
+          containerNameInput?.focus();
+        }, 50);
+
+        loadCreateContainerOptions();
+      }
+
+      function closeCreateModal() {
+        if (!createModal) {
+          return;
+        }
+
+        createModal.classList.add(
+          "hidden",
+        );
+
+        createModal.setAttribute(
+          "aria-hidden",
+          "true",
+        );
+
+        document.body.classList.remove(
+          "modal-open",
+        );
+
+        clearCreateError();
+      }
+
+      async function fetchJson(
+        url: string,
+        options?: RequestInit,
+      ) {
+        const response =
+          await fetch(
+            url,
+            {
+              credentials: "include",
+              ...options,
+              headers: {
+                "Content-Type":
+                  "application/json",
+                ...(options?.headers ?? {}),
+              },
+            },
+          );
+
+        const contentType =
+          response.headers.get(
+            "content-type",
+          ) ?? "";
+
+        let payload: any = null;
+
+        if (
+          contentType.includes(
+            "application/json",
+          )
+        ) {
+          payload =
+            await response.json();
+        } else {
+          const text =
+            await response.text();
+
+          payload = text
+            ? {
+                detail: text,
+              }
+            : null;
+        }
+
+        if (!response.ok) {
+          const message =
+            payload?.detail
+            ?? payload?.message
+            ?? payload?.error
+            ?? `Request failed with status ${response.status}`;
+
+          throw new Error(
+            String(message),
+          );
+        }
+
+        return payload;
+      }
+
+      function clearSelect(
+        select: HTMLSelectElement | null,
+      ) {
+        if (!select) {
+          return;
+        }
+
+        select.innerHTML = "";
+      }
+
+      function addSelectOption(
+        select: HTMLSelectElement | null,
+        value: string,
+        label: string,
+        selected = false,
+      ) {
+        if (!select) {
+          return;
+        }
+
+        const option =
+          document.createElement(
+            "option",
+          );
+
+        option.value = value;
+        option.textContent = label;
+        option.selected = selected;
+
+        select.appendChild(option);
+      }
+
+      async function loadCreateContainerOptions() {
+        /*
+         * The backend exposes container options
+         * through /api/container-options.
+         */
+        try {
+          if (containerImageInput) {
+            containerImageInput.disabled =
+              true;
+
+            containerImageInput.innerHTML =
+              `<option value="">Loading images...</option>`;
+          }
+
+          if (containerStorageInput) {
+            containerStorageInput.disabled =
+              true;
+
+            containerStorageInput.innerHTML =
+              `<option value="">Loading pools...</option>`;
+          }
+
+          if (containerNetworkInput) {
+            containerNetworkInput.disabled =
+              true;
+
+            containerNetworkInput.innerHTML =
+              `<option value="">Loading networks...</option>`;
+          }
+
+          const [
+            options,
+            host,
+            usersData,
+          ] = await Promise.all([
+            fetchJson(
+              "/api/container-options",
+              {
+                method: "GET",
+              },
+            ),
+            fetchJson(
+              "/api/host/resources",
+              {
+                method: "GET",
+              },
+            ),
+            fetchJson(
+              "/api/users",
+              {
+                method: "GET",
+              },
+            ),
+          ]);
+
+          /*
+           * Images
+           */
+          const images =
+            Array.isArray(
+              options?.images,
+            )
+              ? options.images
+              : [];
+
+          clearSelect(
+            containerImageInput,
+          );
+
+          if (!images.length) {
+            addSelectOption(
+              containerImageInput,
+              "",
+              "No images available",
+            );
+          } else {
+            images.forEach(
+              (
+                image: any,
+                index: number,
+              ) => {
+                const value =
+                  typeof image === "string"
+                    ? image
+                    : (
+                        image.alias
+                        ?? image.name
+                        ?? image.fingerprint
+                        ?? image.id
+                        ?? ""
+                      );
+
+                const label =
+                  typeof image === "string"
+                    ? image
+                    : (
+                        image.description
+                        ?? image.title
+                        ?? image.alias
+                        ?? image.name
+                        ?? value
+                      );
+
+                if (value) {
+                  addSelectOption(
+                    containerImageInput,
+                    String(value),
+                    String(label),
+                    index === 0,
+                  );
+                }
+              },
+            );
+          }
+
+          /*
+           * Storage pools
+           */
+          const storagePools =
+            Array.isArray(
+              options?.storage_pools,
+            )
+              ? options.storage_pools
+              : Array.isArray(
+                  options?.pools,
+                )
+                ? options.pools
+                : [];
+
+          clearSelect(
+            containerStorageInput,
+          );
+
+          if (!storagePools.length) {
+            addSelectOption(
+              containerStorageInput,
+              "",
+              "No storage pools available",
+            );
+          } else {
+            storagePools.forEach(
+              (
+                pool: any,
+                index: number,
+              ) => {
+                const value =
+                  typeof pool === "string"
+                    ? pool
+                    : (
+                        pool.name
+                        ?? pool.pool
+                        ?? pool.id
+                        ?? ""
+                      );
+
+                const label =
+                  typeof pool === "string"
+                    ? pool
+                    : (
+                        pool.name
+                        ?? pool.description
+                        ?? value
+                      );
+
+                if (value) {
+                  addSelectOption(
+                    containerStorageInput,
+                    String(value),
+                    String(label),
+                    index === 0,
+                  );
+                }
+              },
+            );
+          }
+
+          if (storagePoolHint) {
+            const poolCount =
+              storagePools.length;
+
+            storagePoolHint.textContent =
+              poolCount
+                ? `${poolCount} storage pool${poolCount === 1 ? "" : "s"} available.`
+                : "";
+          }
+
+          /*
+           * Networks
+           */
+          const networks =
+            Array.isArray(
+              options?.networks,
+            )
+              ? options.networks
+              : [];
+
+          clearSelect(
+            containerNetworkInput,
+          );
+
+          if (!networks.length) {
+            addSelectOption(
+              containerNetworkInput,
+              "",
+              "No networks available",
+            );
+          } else {
+            networks.forEach(
+              (
+                network: any,
+                index: number,
+              ) => {
+                const value =
+                  typeof network === "string"
+                    ? network
+                    : (
+                        network.name
+                        ?? network.network
+                        ?? network.id
+                        ?? ""
+                      );
+
+                const label =
+                  typeof network === "string"
+                    ? network
+                    : (
+                        network.name
+                        ?? network.description
+                        ?? value
+                      );
+
+                if (value) {
+                  addSelectOption(
+                    containerNetworkInput,
+                    String(value),
+                    String(label),
+                    index === 0,
+                  );
+                }
+              },
+            );
+          }
+
+          /*
+           * Host CPU information
+           */
+          const hostCpu =
+            host?.cpu?.logical_cpus
+            ?? host?.cpu?.cores
+            ?? host?.logical_cpus
+            ?? host?.cpu_cores
+            ?? null;
+
+          if (
+            hostCpu !== null
+            && hostCpu !== undefined
+          ) {
+            if (hostCpuHint) {
+              hostCpuHint.textContent =
+                `${hostCpu} logical CPU core${Number(hostCpu) === 1 ? "" : "s"} available.`;
+            }
+
+            if (containerCpuInput) {
+              containerCpuInput.max =
+                String(hostCpu);
+            }
+          } else if (hostCpuHint) {
+            hostCpuHint.textContent =
+              "Host capacity will be validated when creating.";
+          }
+
+          /*
+           * Users / owners
+           */
+          const owners =
+            Array.isArray(
+              usersData?.users,
+            )
+              ? usersData.users
+              : [];
+
+          clearSelect(
+            containerOwnerInput,
+          );
+
+          addSelectOption(
+            containerOwnerInput,
+            "",
+            "No owner",
+            true,
+          );
+
+          owners.forEach(
+            (user: any) => {
+              const userId =
+                user.user_id
+                ?? user.id;
+
+              if (
+                userId === null
+                || userId === undefined
+              ) {
+                return;
+              }
+
+              const label =
+                user.name
+                || user.email
+                || `User ${userId}`;
+
+              addSelectOption(
+                containerOwnerInput,
+                String(userId),
+                String(label),
+              );
+            },
+          );
+
+          if (containerImageInput) {
+            containerImageInput.disabled =
+              false;
+          }
+
+          if (containerStorageInput) {
+            containerStorageInput.disabled =
+              false;
+          }
+
+          if (containerNetworkInput) {
+            containerNetworkInput.disabled =
+              false;
+          }
+        } catch (cause) {
+          const message =
+            cause instanceof Error
+              ? cause.message
+              : "Unable to load container options.";
+
+          if (containerImageInput) {
+            containerImageInput.innerHTML =
+              `<option value="">Unable to load images</option>`;
+          }
+
+          if (containerStorageInput) {
+            containerStorageInput.innerHTML =
+              `<option value="">Unable to load pools</option>`;
+          }
+
+          if (containerNetworkInput) {
+            containerNetworkInput.innerHTML =
+              `<option value="">Unable to load networks</option>`;
+          }
+
+          showCreateError(
+            `Unable to load container options: ${message}`,
+          );
+        }
+      }
+
+      function parseInteger(
+        value: string | null | undefined,
+        fieldName: string,
+      ) {
+        const parsed =
+          Number.parseInt(
+            String(value ?? ""),
+            10,
+          );
+
+        if (
+          !Number.isFinite(parsed)
+          || parsed < 1
+        ) {
+          throw new Error(
+            `${fieldName} must be a positive integer.`,
+          );
+        }
+
+        return parsed;
+      }
+
+      function normalizeFormData() {
+        if (
+          !createForm
+          || !containerNameInput
+          || !containerImageInput
+          || !containerMemoryInput
+          || !containerCpuInput
+          || !containerCpuAllowanceInput
+          || !containerDiskInput
+          || !containerStorageInput
+          || !containerNetworkInput
+        ) {
+          throw new Error(
+            "Create container form is not available.",
+          );
+        }
+
+        if (
+          !createForm.reportValidity()
+        ) {
+          return null;
+        }
+
+        const name =
+          containerNameInput.value.trim();
+
+        const image =
+          containerImageInput.value.trim();
+
+        const memory =
+          containerMemoryInput.value.trim();
+
+        const cpuCores =
+          parseInteger(
+            containerCpuInput.value,
+            "CPU cores",
+          );
+
+        const cpuAllowance =
+          parseInteger(
+            containerCpuAllowanceInput.value,
+            "CPU allowance",
+          );
+
+        const disk =
+          containerDiskInput.value.trim();
+
+        const storagePool =
+          containerStorageInput.value.trim();
+
+        const network =
+          containerNetworkInput.value.trim();
+
+        const ownerValue =
+          containerOwnerInput?.value
+            ?.trim()
+          || "";
+
+        const description =
+          containerDescriptionInput
+            ?.value
+            ?.trim()
+          || "";
+
+        const autostart =
+          containerAutostartInput
+            ?.checked
+          ?? true;
+
+        const ephemeral =
+          containerEphemeralInput
+            ?.checked
+          ?? false;
+
+        if (!name) {
+          throw new Error(
+            "Container name is required.",
+          );
+        }
+
+        if (!image) {
+          throw new Error(
+            "Please select an Ubuntu image.",
+          );
+        }
+
+        if (!memory) {
+          throw new Error(
+            "Memory is required.",
+          );
+        }
+
+        if (!disk) {
+          throw new Error(
+            "Disk limit is required.",
+          );
+        }
+
+        if (!storagePool) {
+          throw new Error(
+            "Please select a storage pool.",
+          );
+        }
+
+        if (!network) {
+          throw new Error(
+            "Please select a network.",
+          );
+        }
+
+        /*
+         * Keep the field names aligned with
+         * the backend create-container API.
+         */
+        const payload: Record<
+          string,
+          unknown
+        > = {
+          name,
+          image,
+          memory,
+          cpu_cores: cpuCores,
+          cpu_allowance: cpuAllowance,
+          disk,
+          storage_pool: storagePool,
+          network,
+          description,
+          autostart,
+          ephemeral,
+        };
+
+        if (ownerValue) {
+          payload.owner_user_id =
+            Number.parseInt(
+              ownerValue,
+              10,
+            );
+        }
+
+        return payload;
+      }
+
+      async function createContainer() {
+        clearCreateError();
+
+        try {
+          const payload =
+            normalizeFormData();
+
+          if (!payload) {
+            return;
+          }
+
+          if (createSubmitButton) {
+            createSubmitButton.disabled =
+              true;
+
+            createSubmitButton.textContent =
+              "Creating...";
+          }
+
+          await createContainerRequest(
+            payload as any,
+          );
+
+          closeCreateModal();
+
+          /*
+           * Reload dashboard data so the
+           * newly-created container appears.
+           */
+          await loadDashboard();
+        } catch (cause) {
+          const message =
+            cause instanceof Error
+              ? cause.message
+              : "Failed to create container.";
+
+          showCreateError(
+            message,
+          );
+        } finally {
+          if (createSubmitButton) {
+            createSubmitButton.disabled =
+              false;
+
+            createSubmitButton.textContent =
+              "Create container";
+          }
+        }
+      }
+
+      createButton?.addEventListener(
+        "click",
+        () => {
+          openCreateModal();
+        },
+      );
+
+      closeCreateButton?.addEventListener(
+        "click",
+        () => {
+          closeCreateModal();
+        },
+      );
+
+      cancelCreateButton?.addEventListener(
+        "click",
+        () => {
+          closeCreateModal();
+        },
+      );
+
+      createModal?.addEventListener(
+        "click",
+        (event) => {
+          if (
+            event.target ===
+            createModal
+          ) {
+            closeCreateModal();
+          }
+        },
+      );
+
+      document.addEventListener(
+        "keydown",
+        (event) => {
+          if (
+            event.key === "Escape"
+            && createModal
+            && !createModal.classList.contains(
+              "hidden",
+            )
+          ) {
+            closeCreateModal();
+          }
+        },
+      );
+
+      createForm?.addEventListener(
+        "submit",
+        async (event) => {
+          event.preventDefault();
+
+          await createContainer();
+        },
+      );
+
+      function openInviteUserModal() {
+        if (!inviteUserModal) {
+          return;
+        }
+
+        inviteUserForm?.reset();
+
+        if (inviteRoleInput) {
+          inviteRoleInput.value = "container_user";
+        }
+
+        if (inviteRamQuotaInput) {
+          inviteRamQuotaInput.value = "0";
+        }
+
+        if (inviteCpuQuotaInput) {
+          inviteCpuQuotaInput.value = "0";
+        }
+
+        if (inviteDiskQuotaInput) {
+          inviteDiskQuotaInput.value = "0";
+        }
+
+        if (inviteUserError) {
+          inviteUserError.textContent = "";
+          inviteUserError.classList.add("hidden");
+        }
+
+        inviteUserModal.classList.remove("hidden");
+        inviteUserModal.setAttribute(
+          "aria-hidden",
+          "false",
+        );
+
+        inviteEmailInput?.focus();
+      }
+
+      function closeInviteUserModal() {
+        if (!inviteUserModal) {
+          return;
+        }
+
+        inviteUserModal.classList.add("hidden");
+        inviteUserModal.setAttribute(
+          "aria-hidden",
+          "true",
+        );
+      }
+
+      inviteUserButton?.addEventListener(
+        "click",
+        openInviteUserModal,
+      );
+
+      closeInviteUserButton?.addEventListener(
+        "click",
+        closeInviteUserModal,
+      );
+
+      cancelInviteUserButton?.addEventListener(
+        "click",
+        closeInviteUserModal,
+      );
+
+      inviteUserModal?.addEventListener(
+        "click",
+        (event) => {
+          if (event.target === inviteUserModal) {
+            closeInviteUserModal();
+          }
+        },
+      );
+
+      inviteUserForm?.addEventListener(
+        "submit",
+        async (event) => {
+          event.preventDefault();
+
+          if (
+            !inviteEmailInput
+            || !inviteNameInput
+            || !inviteRoleInput
+            || !inviteRamQuotaInput
+            || !inviteCpuQuotaInput
+            || !inviteDiskQuotaInput
+          ) {
+            return;
+          }
+
+          const submitButton =
+            document.querySelector<HTMLButtonElement>(
+              "#submit-invite-user",
+            );
+
+          if (inviteUserError) {
+            inviteUserError.textContent = "";
+            inviteUserError.classList.add("hidden");
+          }
+
+          const ramGiB = Number(
+            inviteRamQuotaInput.value,
+          );
+
+          const cpuQuota = Number(
+            inviteCpuQuotaInput.value,
+          );
+
+          const diskGiB = Number(
+            inviteDiskQuotaInput.value,
+          );
+
+          if (
+            !Number.isFinite(ramGiB)
+            || !Number.isFinite(cpuQuota)
+            || !Number.isFinite(diskGiB)
+            || ramGiB < 0
+            || cpuQuota < 0
+            || diskGiB < 0
+          ) {
+            if (inviteUserError) {
+              inviteUserError.textContent =
+                "Quotas must be zero or positive numbers.";
+
+              inviteUserError.classList.remove(
+                "hidden",
+              );
+            }
+
+            return;
+          }
+
+          try {
+            if (submitButton) {
+              submitButton.disabled = true;
+              submitButton.textContent =
+                "Inviting...";
+            }
+
+            await inviteUser({
+              email: inviteEmailInput.value.trim(),
+              name:
+                inviteNameInput.value.trim()
+                || undefined,
+              role: inviteRoleInput.value as
+                | "admin"
+                | "container_user",
+              ram_quota_bytes:
+                gibToBytes(ramGiB),
+              cpu_quota: Math.floor(cpuQuota),
+              disk_quota_bytes:
+                gibToBytes(diskGiB),
+            });
+
+            closeInviteUserModal();
+
+            await loadDashboard();
+          } catch (error) {
+            if (inviteUserError) {
+              inviteUserError.textContent =
+                error instanceof Error
+                  ? error.message
+                  : "Unable to invite user.";
+
+              inviteUserError.classList.remove(
+                "hidden",
+              );
+            }
+          } finally {
+            if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.textContent =
+                "Invite user";
+            }
+          }
+        },
+      );
+
+      function showManageUserError(
+        message: string,
+      ) {
+        if (!manageUserError) {
+          return;
+        }
+
+        manageUserError.textContent = message;
+        manageUserError.classList.remove(
+          "hidden",
+        );
+      }
+
+      function clearManageUserError() {
+        if (!manageUserError) {
+          return;
+        }
+
+        manageUserError.textContent = "";
+        manageUserError.classList.add(
+          "hidden",
+        );
+      }
+
+      function closeManageUserModal() {
+        managedUserId = null;
+
+        manageUserModal?.classList.add(
+          "hidden",
+        );
+
+        manageUserModal?.setAttribute(
+          "aria-hidden",
+          "true",
+        );
+      }
+
+      async function loadManagedAssignments(
+        user: UserRecord,
+      ) {
+        if (!manageUserAssignments) {
+          return;
+        }
+
+        if (user.role === "admin") {
+          manageUserAssignments.innerHTML = `
+            <div class="empty-state">
+              Administrators already have access
+              to every container.
+            </div>
+          `;
+
+          return;
+        }
+
+        manageUserAssignments.textContent =
+          "Loading assignments...";
+
+        const assignmentData =
+          await getUserAssignments(user.id);
+
+        const assignedIds = new Set(
+          assignmentData.containers.map(
+            (container) => container.id,
+          ),
+        );
+
+        if (!dashboardContainers.length) {
+          manageUserAssignments.innerHTML = `
+            <div class="empty-state">
+              No containers are available.
+            </div>
+          `;
+
+          return;
+        }
+
+        manageUserAssignments.innerHTML =
+          dashboardContainers
+            .map((container) => {
+              if (container.container_id === null) {
+                return "";
+              }
+
+              const assigned =
+                assignedIds.has(
+                  container.container_id,
+                );
+
+              const disabled =
+                !user.active && !assigned;
+
+              return `
+                <div class="assignment-row">
+                  <div>
+                    <strong>
+                      ${escapeText(
+                        container.name,
+                      )}
+                    </strong>
+
+                    <span>
+                      ${escapeText(
+                        container.status,
+                      )}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="secondary-button small assignment-toggle"
+                    data-container-id="${
+                      container.container_id
+                    }"
+                    data-assigned="${
+                      assigned
+                    }"
+                    ${disabled ? "disabled" : ""}
+                  >
+                    ${
+                      assigned
+                        ? "Unassign"
+                        : user.active
+                          ? "Assign"
+                          : "Revoked"
+                    }
+                  </button>
+                </div>
+              `;
+            })
+            .join("");
+      }
+
+      async function openManageUserModal(
+        userId: number,
+      ) {
+        const user =
+          dashboardUsers.find(
+            (item) => item.id === userId,
+          );
+
+        if (!user) {
+          return;
+        }
+
+        managedUserId = user.id;
+
+        clearManageUserError();
+
+        if (manageUserEmail) {
+          manageUserEmail.value = user.email;
+        }
+
+        if (manageUserName) {
+          manageUserName.value = user.name ?? "";
+        }
+
+        if (manageUserRole) {
+          manageUserRole.value = user.role;
+        }
+
+        if (manageUserRam) {
+          manageUserRam.value =
+            bytesToGiB(
+              user.ram_quota_bytes,
+            );
+        }
+
+        if (manageUserCpu) {
+          manageUserCpu.value =
+            String(user.cpu_quota);
+        }
+
+        if (manageUserDisk) {
+          manageUserDisk.value =
+            bytesToGiB(
+              user.disk_quota_bytes,
+            );
+        }
+
+        if (revokeUserButton) {
+          const isSelf =
+            currentUserId === user.id;
+
+          revokeUserButton.classList.toggle(
+            "hidden",
+            isSelf || !user.active,
+          );
+        }
+
+        manageUserModal?.classList.remove(
+          "hidden",
+        );
+
+        manageUserModal?.setAttribute(
+          "aria-hidden",
+          "false",
+        );
+
+        try {
+          await loadManagedAssignments(user);
+        } catch (error) {
+          showManageUserError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load assignments.",
+          );
+        }
+      }
+
+      usersList?.addEventListener(
+        "click",
+        async (event) => {
+          const target =
+            event.target as HTMLElement;
+
+          const button =
+            target.closest(
+              ".manage-user-button",
+            ) as HTMLButtonElement | null;
+
+          if (!button) {
+            return;
+          }
+
+          const userId =
+            Number(button.dataset.userId);
+
+          if (!Number.isInteger(userId)) {
+            return;
+          }
+
+          await openManageUserModal(userId);
+        },
+      );
+
+      closeManageUserButton?.addEventListener(
+        "click",
+        closeManageUserModal,
+      );
+
+      cancelManageUserButton?.addEventListener(
+        "click",
+        closeManageUserModal,
+      );
+
+      manageUserModal?.addEventListener(
+        "click",
+        (event) => {
+          if (
+            event.target === manageUserModal
+          ) {
+            closeManageUserModal();
+          }
+        },
+      );
+
+      manageUserAssignments?.addEventListener(
+        "click",
+        async (event) => {
+          const target =
+            event.target as HTMLElement;
+
+          const button =
+            target.closest(
+              ".assignment-toggle",
+            ) as HTMLButtonElement | null;
+
+          if (
+            !button
+            || managedUserId === null
+          ) {
+            return;
+          }
+
+          const containerId =
+            Number(
+              button.dataset.containerId,
+            );
+
+          const assigned =
+            button.dataset.assigned
+            === "true";
+
+          if (
+            !Number.isInteger(containerId)
+          ) {
+            return;
+          }
+
+          button.disabled = true;
+          clearManageUserError();
+
+          try {
+            if (assigned) {
+              await unassignContainerFromUser(
+                managedUserId,
+                containerId,
+              );
+            } else {
+              await assignContainerToUser(
+                managedUserId,
+                containerId,
+              );
+            }
+
+            const user =
+              dashboardUsers.find(
+                (item) =>
+                  item.id === managedUserId,
+              );
+
+            if (user) {
+              await loadManagedAssignments(
+                user,
+              );
+            }
+          } catch (error) {
+            button.disabled = false;
+
+            showManageUserError(
+              error instanceof Error
+                ? error.message
+                : "Unable to update assignment.",
+            );
+          }
+        },
+      );
+
+      manageUserForm?.addEventListener(
+        "submit",
+        async (event) => {
+          event.preventDefault();
+
+          if (
+            managedUserId === null
+            || !manageUserName
+            || !manageUserRole
+            || !manageUserRam
+            || !manageUserCpu
+            || !manageUserDisk
+          ) {
+            return;
+          }
+
+          const ramGiB =
+            Number(manageUserRam.value);
+
+          const cpuQuota =
+            Number(manageUserCpu.value);
+
+          const diskGiB =
+            Number(manageUserDisk.value);
+
+          if (
+            !Number.isFinite(ramGiB)
+            || !Number.isFinite(cpuQuota)
+            || !Number.isFinite(diskGiB)
+            || ramGiB < 0
+            || cpuQuota < 0
+            || diskGiB < 0
+          ) {
+            showManageUserError(
+              "Quotas must be zero or positive numbers.",
+            );
+
+            return;
+          }
+
+          clearManageUserError();
+
+          try {
+            if (saveManageUserButton) {
+              saveManageUserButton.disabled =
+                true;
+
+              saveManageUserButton.textContent =
+                "Saving...";
+            }
+
+            await updateUser(
+              managedUserId,
+              {
+                name:
+                  manageUserName.value.trim(),
+                role:
+                  manageUserRole.value as
+                    | "admin"
+                    | "container_user",
+                ram_quota_bytes:
+                  gibToBytes(ramGiB),
+                cpu_quota:
+                  Math.floor(cpuQuota),
+                disk_quota_bytes:
+                  gibToBytes(diskGiB),
+              },
+            );
+
+            closeManageUserModal();
+
+            await loadDashboard();
+          } catch (error) {
+            showManageUserError(
+              error instanceof Error
+                ? error.message
+                : "Unable to update user.",
+            );
+          } finally {
+            if (saveManageUserButton) {
+              saveManageUserButton.disabled =
+                false;
+
+              saveManageUserButton.textContent =
+                "Save changes";
+            }
+          }
+        },
+      );
+
+      revokeUserButton?.addEventListener(
+        "click",
+        async () => {
+          if (managedUserId === null) {
+            return;
+          }
+
+          const user =
+            dashboardUsers.find(
+              (item) =>
+                item.id === managedUserId,
+            );
+
+          if (!user) {
+            return;
+          }
+
+          const confirmed =
+            window.confirm(
+              `Revoke access for ${user.email}?`,
+            );
+
+          if (!confirmed) {
+            return;
+          }
+
+          clearManageUserError();
+
+          try {
+            revokeUserButton.disabled = true;
+            revokeUserButton.textContent =
+              "Revoking...";
+
+            await revokeUser(
+              managedUserId,
+            );
+
+            closeManageUserModal();
+
+            await loadDashboard();
+          } catch (error) {
+            showManageUserError(
+              error instanceof Error
+                ? error.message
+                : "Unable to revoke user.",
+            );
+          } finally {
+            revokeUserButton.disabled = false;
+            revokeUserButton.textContent =
+              "Revoke access";
+          }
+        },
+      );
 
       document
         .querySelectorAll<HTMLElement>(
@@ -583,7 +2919,6 @@ const pageTitle = "Hobby Server Monitor";
           );
         });
 
-
       async function loadDashboard() {
         try {
           const auth =
@@ -597,8 +2932,11 @@ const pageTitle = "Hobby Server Monitor";
             login?.classList.remove(
               "hidden",
             );
+
             return;
           }
+
+          currentUserId = auth.user.id;
 
           app?.classList.remove(
             "hidden",
@@ -621,6 +2959,9 @@ const pageTitle = "Hobby Server Monitor";
           const containerData =
             await getContainers();
 
+          dashboardContainers =
+            containerData.containers;
+
           const containers =
             containerData.containers;
 
@@ -638,7 +2979,9 @@ const pageTitle = "Hobby Server Monitor";
 
           if (totalCount) {
             totalCount.textContent =
-              String(containers.length);
+              String(
+                containers.length,
+              );
           }
 
           if (runningCount) {
@@ -654,7 +2997,9 @@ const pageTitle = "Hobby Server Monitor";
           const containerHtml =
             containers.length
               ? containers
-                  .map(containerMarkup)
+                  .map(
+                    containerMarkup,
+                  )
                   .join("")
               : `
                   <div class="empty-state">
@@ -698,9 +3043,14 @@ const pageTitle = "Hobby Server Monitor";
             const userData =
               await getUsers();
 
+            dashboardUsers =
+              userData.users;
+
             if (usersCount) {
               usersCount.textContent =
-                String(userData.count);
+                String(
+                  userData.count,
+                );
             }
 
             if (usersList) {
@@ -734,7 +3084,6 @@ const pageTitle = "Hobby Server Monitor";
         }
       }
 
-
       logoutButton?.addEventListener(
         "click",
         async () => {
@@ -742,8 +3091,8 @@ const pageTitle = "Hobby Server Monitor";
 
           try {
             await logout();
-            window.location.reload();
 
+            window.location.reload();
           } catch (cause) {
             alert(
               cause instanceof Error
@@ -757,7 +3106,6 @@ const pageTitle = "Hobby Server Monitor";
         },
       );
 
-
       loadDashboard();
     </script>
   </body>
@@ -766,6 +3114,10 @@ const pageTitle = "Hobby Server Monitor";
 <style is:global>
   * {
     box-sizing: border-box;
+  }
+
+  html {
+    background: #0b0d10;
   }
 
   body {
@@ -784,9 +3136,32 @@ const pageTitle = "Hobby Server Monitor";
     color: #f4f5f7;
   }
 
+  body.modal-open {
+    overflow: hidden;
+  }
+
   button,
+  input,
+  select,
+  textarea,
   a {
     font: inherit;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    outline: none;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible {
+    outline: 2px solid #f2f3f4;
+    outline-offset: 2px;
   }
 
   .hidden {
@@ -866,6 +3241,22 @@ const pageTitle = "Hobby Server Monitor";
     font-size: 13px;
     font-weight: 650;
     cursor: pointer;
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .primary-button:hover {
+    opacity: 0.9;
+  }
+
+  .primary-button:active {
+    transform: translateY(1px);
+  }
+
+  .primary-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .primary-button.small {
@@ -977,6 +3368,10 @@ const pageTitle = "Hobby Server Monitor";
     cursor: pointer;
   }
 
+  .logout-button:hover {
+    color: #f1f2f4;
+  }
+
   .content {
     min-width: 0;
     padding: 38px clamp(
@@ -1083,6 +3478,8 @@ const pageTitle = "Hobby Server Monitor";
     color: inherit;
     text-decoration: none;
     cursor: pointer;
+    transition:
+      background 0.15s ease;
   }
 
   .container-row:hover {
@@ -1122,6 +3519,7 @@ const pageTitle = "Hobby Server Monitor";
   .status-dot {
     width: 8px;
     height: 8px;
+    flex: 0 0 8px;
     border-radius: 50%;
     background: #626975;
   }
@@ -1168,6 +3566,334 @@ const pageTitle = "Hobby Server Monitor";
     background: #1d1213;
   }
 
+  /*
+   * --------------------------------
+   * Create Container Modal
+   * --------------------------------
+   */
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    background: rgba(
+      0,
+      0,
+      0,
+      0.72
+    );
+    backdrop-filter: blur(8px);
+  }
+
+  .modal-card {
+    width: min(
+      100%,
+      780px
+    );
+    max-height: calc(
+      100vh - 48px
+    );
+    overflow-y: auto;
+    border: 1px solid #292e36;
+    border-radius: 18px;
+    background: #111318;
+    box-shadow:
+      0 24px 80px
+      rgba(0, 0, 0, 0.45);
+  }
+
+  .modal-header {
+    padding: 24px 26px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    border-bottom: 1px solid #22262c;
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: -0.035em;
+  }
+
+  .modal-description {
+    margin: 8px 0 0;
+    color: #7f8793;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .icon-button {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #2b3038;
+    border-radius: 8px;
+    color: #9ba2ad;
+    background: #181b20;
+    font-size: 21px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .icon-button:hover {
+    color: #f2f3f4;
+    background: #20242a;
+  }
+
+  #create-container-form {
+    padding: 24px 26px 26px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .field {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field.full {
+    grid-column: 1 / -1;
+  }
+
+  .field > span:first-child {
+    color: #dfe2e6;
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    width: 100%;
+    border: 1px solid #2a2f37;
+    border-radius: 9px;
+    padding: 11px 12px;
+    color: #f2f3f4;
+    background: #0d0f12;
+    font-size: 12px;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .field input::placeholder,
+  .field textarea::placeholder {
+    color: #5f6671;
+  }
+
+  .field input:hover,
+  .field select:hover,
+  .field textarea:hover {
+    border-color: #363c45;
+  }
+
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: #707985;
+    background: #101318;
+  }
+
+  .field input:disabled,
+  .field select:disabled,
+  .field textarea:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .field textarea {
+    min-height: 92px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .field select {
+    appearance: auto;
+  }
+
+  .field small {
+    color: #666e7a;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .input-suffix {
+    position: relative;
+  }
+
+  .input-suffix input {
+    padding-right: 38px;
+  }
+
+  .input-suffix > span {
+    position: absolute;
+    top: 50%;
+    right: 13px;
+    transform: translateY(-50%);
+    color: #747c88;
+    font-size: 11px;
+    pointer-events: none;
+  }
+
+  .toggle-grid {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .toggle-row {
+    min-width: 0;
+    padding: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    border: 1px solid #252a31;
+    border-radius: 10px;
+    background: #0d0f12;
+    cursor: pointer;
+  }
+
+  .toggle-row:hover {
+    background: #13161a;
+    border-color: #303640;
+  }
+
+  .toggle-row input {
+    width: 15px;
+    height: 15px;
+    margin: 2px 0 0;
+    flex: 0 0 15px;
+    accent-color: #f2f3f4;
+    cursor: pointer;
+  }
+
+  .toggle-row span {
+    min-width: 0;
+  }
+
+  .toggle-row strong,
+  .toggle-row small {
+    display: block;
+  }
+
+  .toggle-row strong {
+    color: #e3e5e8;
+    font-size: 12px;
+  }
+
+  .toggle-row small {
+    margin-top: 4px;
+    color: #6f7783;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .form-error {
+    margin-top: 18px;
+    padding: 11px 12px;
+    border: 1px solid #613333;
+    border-radius: 8px;
+    color: #e88d8d;
+    background: #1c1213;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .modal-footer {
+    margin-top: 24px;
+    padding-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid #22262c;
+  }
+
+  .secondary-button {
+    padding: 11px 16px;
+    border: 1px solid #2a2f37;
+    border-radius: 9px;
+    color: #aeb4bd;
+    background: #181b20;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .secondary-button:hover {
+    color: #f2f3f4;
+    background: #20242a;
+  }
+
+  .manage-user-card {
+    width: min(760px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+
+  .assignment-section {
+    margin-top: 8px;
+    padding: 24px;
+    border-top: 1px solid #252a31;
+  }
+
+  .assignment-section h3 {
+    margin: 6px 0 16px;
+  }
+
+  .assignment-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .assignment-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid #282d35;
+    border-radius: 12px;
+    background: #0d1014;
+  }
+
+  .assignment-row > div {
+    display: grid;
+    gap: 4px;
+  }
+
+  .assignment-row span {
+    color: #8d96a5;
+    font-size: 0.82rem;
+  }
+
+  .danger-button {
+    color: #ff8d8d;
+    border-color: rgba(255, 100, 100, 0.28);
+  }
+
+  .danger-button:hover {
+    border-color: rgba(255, 100, 100, 0.55);
+  }
+
   @media (max-width: 900px) {
     .app {
       grid-template-columns: 1fr;
@@ -1199,6 +3925,35 @@ const pageTitle = "Hobby Server Monitor";
     }
   }
 
+  @media (max-width: 700px) {
+    .form-grid,
+    .toggle-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .field.full {
+      grid-column: auto;
+    }
+
+    .modal-backdrop {
+      padding: 12px;
+      align-items: flex-start;
+    }
+
+    .modal-card {
+      max-height: calc(
+        100vh - 24px
+      );
+      border-radius: 14px;
+    }
+
+    .modal-header,
+    #create-container-form {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+  }
+
   @media (max-width: 620px) {
     .content {
       padding: 24px 16px;
@@ -1218,6 +3973,28 @@ const pageTitle = "Hobby Server Monitor";
     .user-meta {
       width: 100%;
       flex-wrap: wrap;
+    }
+
+    .header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .login-card {
+      padding: 32px 24px;
+    }
+
+    .login-card h1 {
+      font-size: 42px;
+    }
+
+    .modal-footer {
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
+
+    .modal-footer button {
+      width: 100%;
     }
   }
 </style>
